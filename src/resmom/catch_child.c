@@ -2664,17 +2664,47 @@ rid_job(char *jobid)
  *	prevents a second obit from being sent.
  *
  * @param[in] jobid - char pointer holding jobid
- *
- * @return Void
+ * 
+ * @NOTE:
+ *		When no stagein or stageout to do and when -koe given finish
+ *		job rather than marking as exited.
+ * @return void
  *
  */
 void
 set_job_toexited(char *jobid)
 {
 	job *pjob;
+	char *attr_val;
+	int cull_job = 0;
 
 	pjob = find_job(jobid);
 	if (pjob) {
+		
+		/* no stage out associated? */
+		if (!(pjob->ji_wattr[(int)JOB_ATR_stagein].at_flags & ATR_VFLAG_SET) &&
+			!(pjob->ji_wattr[(int)JOB_ATR_stageout].at_flags & ATR_VFLAG_SET)) { /* no stagein/stageout files */
+			attr_val = pjob->ji_wattr[(int)JOB_ATR_keep].at_val.at_str;
+			if (pjob->ji_wattr[(int)JOB_ATR_keep].at_flags & ATR_VFLAG_SET) {
+				if (strchr(pjob->ji_wattr[(int)JOB_ATR_keep].at_val.at_str, 'd')) {
+					char path[MAXPATHLEN+1]; /* not used */
+					int direct_write_possible = 1; /* not used */
+					if (is_direct_write(pjob, StdOut, path, &direct_write_possible) &&
+										is_direct_write(pjob, StdErr, path, &direct_write_possible))
+						cull_job = 1;
+				} else if (strchr(attr_val, 'o') && strchr(attr_val, 'e')) {
+					cull_job = 1;
+				}
+
+				if (cull_job) {
+					/* no standard out/err to be copied as well */
+					/* cull the job here */
+					mom_deljob_wait(pjob);
+					return;
+				}
+			}
+		}
+
 		pjob->ji_qs.ji_substate = JOB_SUBSTATE_EXITED;
 		if (pjob->ji_qs.ji_svrflags & JOB_SVFLG_CHKPT) {
 			/* if checkpointed, save state to disk, otherwise  */

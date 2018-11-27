@@ -382,7 +382,7 @@ local_or_remote(char **path)
 		/* path updated in told_to_cp() */
 		*pcolon = ':';
 		return 0;
-	} else if ((strcasecmp("localhost", *path) ==0)  ||
+	} else if ((strcasecmp("localhost", *path) == 0)  ||
 		((strncasecmp(mom_host, *path, len) == 0) &&
 		((mom_host[len] == '\0') || (mom_host[len] == '.')))) {
 		/* we have a host match, file is local */

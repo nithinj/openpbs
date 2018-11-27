@@ -395,6 +395,7 @@ extern int setcurrentworkdir(char *);
 extern int becomeuser(job *);
 extern int becomeuser_args(char *, uid_t, gid_t, gid_t);
 extern void close_update_pipes(job *);
+extern int is_direct_write(job *, enum job_file, char *, int *);
 
 /* From popen.c */
 extern FILE *pbs_popen(const char *, const char *);

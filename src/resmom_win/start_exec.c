@@ -144,7 +144,6 @@ static int set_credential(job *, char **, char ***);
 extern eventent * event_dup(eventent *ep, job *pjob, hnodent *pnode);
 extern void send_join_job_restart_mcast(int mtfd, int com, eventent *ep, int nth, job *pjob, pbs_list_head *phead);
 
-extern int is_direct_write(job *, enum job_file, char *, int *);
 static int direct_write_possible = 1;
 
 /* Local Varibles */
