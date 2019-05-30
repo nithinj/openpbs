@@ -328,3 +328,5 @@ perf_stat_stop(char *instance);
 }
 #endif
 #endif
+
+int get_max_servers();

@@ -6227,6 +6227,7 @@ class Server(PBSService):
         :type attr_w: str
         :raises: PbsDeljobError
         """
+        CANNOT_CONTACT_MOM = 222
         prefix = 'delete job on ' + self.shortname
         if runas is not None:
             prefix += ' as ' + str(runas)
@@ -6258,32 +6259,54 @@ class Server(PBSService):
             if id is not None:
                 chunks = [id[i:i + 2000] for i in range(0, len(id), 2000)]
                 for chunk in chunks:
-                    ret = self.du.run_cmd(self.client, pcmd + chunk,
-                                          runas=runas, as_script=as_script,
-                                          logerr=logerr, level=logging.INFOCLI)
+                    retry = 30
+                    while True:
+                        ret = self.du.run_cmd(self.client, pcmd + chunk,
+                                            runas=runas, as_script=as_script,
+                                            logerr=logerr, level=logging.INFOCLI)
+                        rc = ret['rc']
+                        if ret['err'] != ['']:
+                            self.last_error = ret['err']
+                        self.last_rc = rc
+
+                        if rc == CANNOT_CONTACT_MOM:
+                            retry -= 1
+                            time.sleep(1)
+                        if (rc == 0 or (rc != 0 and retry <= 0)):
+                            break
+            else:
+                retry = 30
+                while True:
+                    ret = self.du.run_cmd(self.client, pcmd, runas=runas,
+                                        as_script=as_script, logerr=logerr,
+                                        level=logging.INFOCLI)
                     rc = ret['rc']
                     if ret['err'] != ['']:
                         self.last_error = ret['err']
                     self.last_rc = rc
-                    if rc != 0:
+
+                    if rc == CANNOT_CONTACT_MOM:
+                        retry -= 1
+                        time.sleep(1)
+                    if (rc == 0 or (rc != 0 and retry <= 0)):
                         break
-            else:
-                ret = self.du.run_cmd(self.client, pcmd, runas=runas,
-                                      as_script=as_script, logerr=logerr,
-                                      level=logging.INFOCLI)
-                rc = ret['rc']
-                if ret['err'] != ['']:
-                    self.last_error = ret['err']
-                self.last_rc = rc
         elif runas is not None:
             rc = self.pbs_api_as('deljob', id, user=runas, extend=extend)
         else:
             c = self._connect(self.hostname)
             rc = 0
             for ajob in id:
-                tmp_rc = pbs_deljob(c, ajob, extend)
-                if tmp_rc != 0:
-                    rc = tmp_rc
+                retry = 30
+                while True:
+                    tmp_rc = pbs_deljob(c, ajob, extend)
+                    if tmp_rc != 0:
+                        rc = tmp_rc
+
+                    if rc == CANNOT_CONTACT_MOM:
+                        retry -= 1
+                        time.sleep(1)
+                    if (rc == 0 or (rc != 0 and retry <= 0)):
+                        break
         if rc != 0:
             raise PbsDeljobError(rc=rc, rv=False, msg=self.geterrmsg(),
                                  post=self._disconnect, conn=c)
@@ -6775,6 +6798,9 @@ class Server(PBSService):
                             break
                     if rc == 0:
                         rc = tmprc
+
+        if id is None and obj_type == SERVER:
+            id = self.hostname
         bs_list = []
         if cmd == MGR_CMD_DELETE and oid is not None and rc == 0:
             for i in oid:

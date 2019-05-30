@@ -983,13 +983,6 @@ dispatch_request(int sfds, struct batch_request *request)
 			req_stat_resc(request);
 			break;
 
-		case PBS_BATCH_MomRestart:
-			log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_NODE,
-				LOG_INFO,
-				request->rq_ind.rq_momrestart.rq_momhost,
-				"Mom restarted on host");
-			req_momrestart(request);
-			break;
 #else	/* MOM only functions */
 
 		case PBS_BATCH_CopyFiles:
@@ -1606,5 +1599,28 @@ get_servername(unsigned int *port)
 		name = parse_servername(pbs_conf.pbs_server_name, port);
 
 	return name;
+}
+
+/**
+ * @brief
+ * 		choosing one server in random if a failover server is already set up.
+ *
+ * @param[out] port - Passed through to parse_servername(), not modified here.
+ *
+ * @return char *
+ * @return NULL - failure
+ * @retval !NULL - pointer to server name
+ */
+char *
+get_servername_random(unsigned int *port)
+{
+
+	if (rand() % 2 == 0)
+		return get_servername(port);
+	else {
+		if (pbs_conf.pbs_secondary)
+			return parse_servername(pbs_conf.pbs_secondary, port);
+		return NULL;
+	}
 }
 

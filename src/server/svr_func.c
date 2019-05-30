@@ -733,6 +733,8 @@ action_reserve_retry_init(attribute *pattr, void *pobj, int actmode)
 int
 set_rpp_retry(attribute *pattr, void *pobj, int actmode)
 {
+	int old_rpp_retry = rpp_retry;
+
 	if (actmode == ATR_ACTION_ALTER ||
 		actmode == ATR_ACTION_RECOV) {
 		/*
@@ -750,6 +752,11 @@ set_rpp_retry(attribute *pattr, void *pobj, int actmode)
 				LOG_DEBUG, msg_daemonname, log_buffer);
 		}
 	}
+
+	if (actmode == ATR_ACTION_ALTER && old_rpp_retry != rpp_retry) {
+		mcast_nodes(IS_NULL);
+	}
+
 	return PBSE_NONE;
 }
 
@@ -769,6 +776,8 @@ set_rpp_retry(attribute *pattr, void *pobj, int actmode)
 int
 set_rpp_highwater(attribute *pattr, void *pobj, int actmode)
 {
+	int old_rpp_highwater = rpp_highwater;
+
 	if (actmode == ATR_ACTION_ALTER ||
 		actmode == ATR_ACTION_RECOV) {
 		/*
@@ -781,6 +790,11 @@ set_rpp_highwater(attribute *pattr, void *pobj, int actmode)
 
 		rpp_highwater = (int)pattr->at_val.at_long;
 	}
+
+	if (actmode == ATR_ACTION_ALTER && old_rpp_highwater != rpp_highwater) {
+		mcast_nodes(IS_NULL);
+	}
+
 	return PBSE_NONE;
 }
 

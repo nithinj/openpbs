@@ -270,6 +270,7 @@ unsigned int	pbs_rm_port;
 pbs_list_head	mom_polljobs;	/* jobs that must have resource limits polled */
 pbs_list_head	mom_deadjobs;	/* jobs that need to purged, see chk_del_job */
 int		server_stream = -1;
+int		waiting_hello_resp = 0;
 pbs_list_head	svr_newjobs;	/* jobs being sent to MOM */
 pbs_list_head	svr_alljobs;	/* all jobs under MOM's control */
 time_t		time_last_sample = 0;
@@ -8120,8 +8121,7 @@ log_tppmsg(int level, const char *objname, char *mess)
 		snprintf(id, sizeof(id), "%s(Thread %d)", (objname != NULL) ? objname : msg_daemonname, thrd_index);
 
 	log_event(etype, PBS_EVENTCLASS_TPP, level, id, mess);
-	DBPRT((mess));
-	DBPRT(("\n"));
+	DBPRT(("%s\n", mess));
 }
 
 /*
@@ -8193,6 +8193,46 @@ net_down_handler(void *data)
 	mom_net_up_time = 0;
 }
 
+
+/**
+ * @brief
+ *      This function returns the time delta
+ * 	after which mom should send the next hello.
+ * 	Tries for short bursts followed by longer intervals.
+ * @param[in] mode -	reset mode is to bring it back to bursting mode
+ * 
+ * @return int
+ * @retval >0 : time mom should wait before sending the next hello
+ * @retval 0 : only in case of reset mode.
+ */
+int
+time_delta(int mode)
+{
+	static int delta = 1;
+	static int cnt = 1;
+	int max_delta_mask = 0x3F;
+
+	DBPRT(("time_delta: mode: %d, delta: %d, cnt: %d", mode, delta, cnt))
+
+	if (mode == MOM_DELTA_RESET) {
+		delta = 1;
+		cnt = 1;
+		return 0;
+	}
+
+	if (cnt == 0) {
+		if (delta & ~max_delta_mask) {
+			return delta;
+		}
+		delta <<= 1;
+		cnt = delta * 2;
+	} else {
+		cnt--;
+	}
+
+	return delta;
+}
+
 #ifdef	WIN32
 /**
  * @brief
@@ -8216,6 +8256,7 @@ main(int argc, char *argv[])
 	unsigned int		serverport;
 	int					recover = 0;
 	time_t				time_state_update = 0;
+	time_t				time_last_hello = 0;
 	int					tryport;
 	int					rppfd;				/* fd for rm and im comm */
 	int					privfd = -1;		/* fd for sending job info */
@@ -9732,7 +9773,7 @@ main(int argc, char *argv[])
 	 * TPP mode: don't send a restart at startup
 	 * we will send one when we connect to router
 	 */
-	if (pbs_conf.pbs_use_tcp == 0)
+	if (pbs_conf.pbs_use_tcp == 0 && server_stream == -1)
 		send_restart();
 
 #ifdef	WIN32
@@ -9757,9 +9798,16 @@ main(int argc, char *argv[])
 		}
 #endif
 
+		time_now = time(NULL);
+		if (server_stream == -1) {
+			if (time_now > time_last_hello) {
+				time_last_hello = time_now + time_delta(MOM_DELTA_NORMAL);
+				send_restart();
+			}
+		}
+
 		wait_time = default_next_task();
 		end_proc();
-		time_now = time(NULL);
 
 		dorestrict_user();
 

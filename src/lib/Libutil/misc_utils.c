@@ -1897,3 +1897,9 @@ delay_query(void)
 #endif /* WIN32 */
 	atexit(create_query_file);
 }
+
+int 
+get_max_servers()
+{
+	return 1;
+}
