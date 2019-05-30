@@ -8179,6 +8179,7 @@ main(int argc, char *argv[])
 	unsigned int		serverport;
 	int					recover = 0;
 	time_t				time_state_update = 0;
+	time_t				time_last_hello = 0;
 	int					tryport;
 	int					rppfd;				/* fd for rm and im comm */
 	int					privfd = -1;		/* fd for sending job info */
@@ -9715,7 +9716,7 @@ main(int argc, char *argv[])
 	 * TPP mode: don't send a restart at startup
 	 * we will send one when we connect to router
 	 */
-	if (pbs_conf.pbs_use_tcp == 0)
+	if (pbs_conf.pbs_use_tcp == 0 && server_stream == -1)
 		send_restart();
 
 #ifdef	WIN32
@@ -9735,6 +9736,13 @@ main(int argc, char *argv[])
 			internal_state_update = UPDATE_MOM_STATE;
 		}
 #endif
+
+		if (server_stream == -1) {
+			if (time_now > time_last_hello) {
+				time_last_hello = time_now + MIN_CHECK_POLL_TIME;
+				send_restart();
+			}
+		}
 
 		wait_time = default_next_task();
 		end_proc();
