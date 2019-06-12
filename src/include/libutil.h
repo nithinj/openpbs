@@ -318,6 +318,8 @@ perf_stat_remove(char *instance);
 char *
 perf_stat_stop(char *instance);
 
+int sha256(char *string, char *outputBuffer);
+
 #ifdef  __cplusplus
 }
 #endif

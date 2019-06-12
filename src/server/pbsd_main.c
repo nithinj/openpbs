@@ -221,6 +221,7 @@ unsigned int	pbs_mom_port;
 unsigned int	pbs_rm_port;
 pbs_net_t	pbs_server_addr;
 unsigned int	pbs_server_port_dis;
+char	       *pbs_key = NULL;
 /*
  * the names of the Server:
  *    pbs_server_name - from PBS_SERVER_HOST_NAME
