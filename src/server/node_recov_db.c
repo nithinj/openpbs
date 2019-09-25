@@ -50,6 +50,7 @@
  *	svr_to_db_node()
  *	node_recov_db_raw()
  *	node_delete_db()
+ *	node_recov_db()
  */
 
 
@@ -126,11 +127,11 @@ extern int make_pbs_list_attr_db(void *parent, pbs_db_attr_list_t *attr_list, st
  * @retval  -1 - Failure
  *
  */
-/*
+
 static int
 db_to_svr_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 {
-	if (pdbnd->nd_name && pdbnd->nd_name[0]!=0) {
+	if (pdbnd->nd_name && pdbnd->nd_name[0] != 0) {
 		pnode->nd_name = strdup(pdbnd->nd_name);
 		if (pnode->nd_name == NULL)
 			return -1;
@@ -159,7 +160,65 @@ db_to_svr_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 
 	return 0;
 }
-*/
+
+
+/**
+ * @brief
+ *		Recover a node from the database
+ *
+ * @param[in]	nd	- Information about the node to recover
+ *
+ * @return	The recovered node structure
+ * @retval	NULL - Failure
+ * @retval	!NULL - Success - address of recovered node returned
+ */
+struct pbsnode *
+node_recov_db(char *nd_name, struct pbsnode *pnode)
+{
+	pbs_db_obj_info_t obj;
+	pbs_db_conn_t *conn = (pbs_db_conn_t *) svr_db_conn;
+	pbs_db_node_info_t dbnode;
+
+	strcpy(dbnode.nd_name, nd_name);
+	dbnode.nd_savetm[0] = '\0';
+	dbnode.attr_list.attributes = NULL;
+
+	if (!pnode) {
+		pnode = malloc(sizeof(struct pbsnode));
+		initialize_pbsnode(pnode, nd_name, NTYPE_PBS);
+	} else {
+		strcpy(dbnode.nd_savetm, pnode->nd_savetm);
+	}
+	
+	if (pnode == NULL) {
+		log_err(errno, "node_recov", "error on recovering node table");
+		return NULL;
+	}
+	obj.pbs_db_obj_type = PBS_DB_NODE;
+	obj.pbs_db_un.pbs_db_node = &dbnode;
+
+	if (pbs_db_begin_trx(conn, 0, 0) != 0)
+		goto db_err;
+
+	if (pbs_db_load_obj(conn, &obj, 0) != 0)
+		goto db_err;
+
+	if (db_to_svr_node(pnode, &dbnode) != 0)
+		goto db_err;
+
+	if (pbs_db_end_trx(conn, PBS_DB_COMMIT) != 0)
+		goto db_err;
+
+	pbs_db_reset_obj(&obj);
+
+	return pnode;
+
+db_err:
+	free(pnode);
+	log_err(-1, "node_recov", "error on recovering node attr");
+	(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
+	return NULL;
+}
 
 /**
  * @brief

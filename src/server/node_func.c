@@ -181,10 +181,11 @@ static void	remove_node_topology(char *);
  * @retval	NULL	- failure
  */
 
-struct pbsnode	  *find_nodebyname(nodename)
-char *nodename;
+struct pbsnode *
+find_nodebyname(char *nodename)
 {
 	char		*pslash;
+	struct pbsnode *pnode;
 
 	if (nodename == NULL)
 		return NULL;
@@ -195,7 +196,17 @@ char *nodename;
 	if (node_tree == NULL)
 		return NULL;
 
-	return ((struct pbsnode *) find_tree(node_tree, nodename));
+	pnode = find_tree(node_tree, nodename);
+	if (!pnode && (pnode = node_recov_db(nodename, pnode)) != NULL) {
+		/* add to node tree */
+		if (tree_add_del(node_tree, nodename, pnode, TREE_OP_ADD) != 0) {
+			svr_totnodes--;
+			free_pnode(pnode);
+			return NULL;
+		}
+	} else
+		pnode = node_recov_db(nodename, pnode);
+	return pnode;
 }
 
 
@@ -746,6 +757,7 @@ free_pnode(struct pbsnode *pnode)
 		(void)free(pnode->nd_hostname);
 		(void)free(pnode->nd_moms);
 		(void)free(pnode); /* delete the pnode from memory */
+		pnode = NULL;
 	}
 }
 

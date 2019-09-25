@@ -115,7 +115,6 @@ pg_db_prepare_node_sqls(pbs_db_conn_t *conn)
 
 	snprintf(conn->conn_sql, MAX_SQL_LENGTH, "select "
 		"nd_name, "
-		"nd_index, "
 		"mom_modtime, "
 		"nd_hostname, "
 		"nd_state, "

@@ -3807,6 +3807,7 @@ update2_to_vnode(vnal_t *pvnal, int new, mominfo_t *pmom, int *madenew, int from
 		set_vnode_state(pnode,
 			~states_to_clear,
 			Nd_State_And);
+		node_save_db(pnode);
 		return 0;
 	} else {
 		snprintf(log_buffer, sizeof(log_buffer),
