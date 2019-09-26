@@ -3431,8 +3431,7 @@ update2_to_vnode(vnal_t *pvnal, int new, mominfo_t *pmom, int *madenew, int from
 		/* don't reset sharing as it likely was set then       */
 		if ((pnode->nd_modified & NODE_UPDATE_VNL) == 0) {
 			pnode->nd_attr[(int)ND_ATR_Sharing].at_val.at_long = VNS_DFLT_SHARED;
-			pnode->nd_attr[(int)ND_ATR_Sharing].at_flags =
-				(ATR_VFLAG_SET |ATR_VFLAG_DEFLT);
+			pnode->nd_attr[(int)ND_ATR_Sharing].at_flags = ATR_VFLAG_SET;
 		}
 	}
 
@@ -3536,25 +3535,16 @@ update2_to_vnode(vnal_t *pvnal, int new, mominfo_t *pmom, int *madenew, int from
 							bad = fix_indirectness(prs, pnode, 1);
 						}
 					} else if ((bad = prdef->rs_decode(&prs->rs_value, buf, resc, psrp->vna_val)) == 0) {
-						/* This (ATR_FLAG_DEFLT) means set by the */
-						/* server and not manager */
-						/* mom hook we're treating */
-						/* set by manager */
-						if (from_hook) {
-							/* These flags ensure */
-							/* changes survive */
-							/* server restart */
-							prs->rs_value.at_flags \
-							     &= ~ATR_VFLAG_DEFLT;
-							prs->rs_value.at_flags \
-							   |= ATR_VFLAG_MODCACHE;
-							if (psrp->vna_val[0] != \
-									'\0') {
-								prs->rs_value.at_flags |= (ATR_VFLAG_SET|ATR_VFLAG_MODIFY);
-							}
-						} else {
-							prs->rs_value.at_flags \
-							      |= ATR_VFLAG_DEFLT;
+						/* These flags ensure */
+						/* changes survive */
+						/* server restart */
+						prs->rs_value.at_flags \
+							&= ~ATR_VFLAG_DEFLT;
+						prs->rs_value.at_flags \
+							|= ATR_VFLAG_MODCACHE;
+						if (psrp->vna_val[0] != \
+								'\0') {
+							prs->rs_value.at_flags |= (ATR_VFLAG_SET|ATR_VFLAG_MODIFY);
 						}
 						if (strcasecmp("ncpus", resc) == 0) {
 							/* if ncpus, adjust virtual/subnodes */
@@ -4461,8 +4451,7 @@ found:
 					if ((np->nd_attr[(int)ND_ATR_Sharing].at_flags & (ATR_VFLAG_SET|ATR_VFLAG_DEFLT)) != ATR_VFLAG_SET) {
 						/* unset or ATR_VFLAG_DEFLT is set */
 						np->nd_attr[(int)ND_ATR_Sharing].at_val.at_long = (long)VNS_DFLT_SHARED;
-						np->nd_attr[(int)ND_ATR_Sharing].at_flags =
-							ATR_VFLAG_SET|ATR_VFLAG_DEFLT;
+						np->nd_attr[(int)ND_ATR_Sharing].at_flags = ATR_VFLAG_SET;
 					}
 
 
@@ -4643,8 +4632,7 @@ found:
 						free(prc->rs_value.at_val.at_str);
 					prc->rs_value.at_val.at_str = strdup(psvrmom->msr_arch);
 					prc->rs_value.at_flags |= (ATR_VFLAG_SET |
-						ATR_VFLAG_MODCACHE |
-						ATR_VFLAG_DEFLT);
+						ATR_VFLAG_MODCACHE);
 				}
 
 				/*
@@ -4664,8 +4652,7 @@ found:
 						prc->rs_value.at_val.at_long = psvrmom->msr_acpus;
 						prc->rs_value.at_flags |=
 							(ATR_VFLAG_SET |
-							ATR_VFLAG_MODCACHE |
-							ATR_VFLAG_DEFLT);
+							ATR_VFLAG_MODCACHE);
 					}
 					prd = find_resc_def(svr_resc_def, "mem",
 						svr_resc_size);
@@ -4678,8 +4665,7 @@ found:
 							psvrmom->msr_pmem;
 						prc->rs_value.at_val.at_size.atsv_shift = 10;
 						prc->rs_value.at_flags |= (ATR_VFLAG_SET |
-							ATR_VFLAG_MODCACHE |
-							ATR_VFLAG_DEFLT);
+							ATR_VFLAG_MODCACHE);
 					}
 				}
 
@@ -4733,7 +4719,7 @@ found:
 
 					if (change || !(np->nd_attr[(int)ND_ATR_ResvEnable].at_flags & ATR_VFLAG_SET) || !(np->nd_attr[(int)ND_ATR_ResvEnable].at_flags & ATR_VFLAG_DEFLT))
 
-						np->nd_attr[(int)ND_ATR_ResvEnable].at_flags |= ATR_VFLAG_SET | ATR_VFLAG_DEFLT | ATR_VFLAG_MODCACHE;
+						np->nd_attr[(int)ND_ATR_ResvEnable].at_flags |= ATR_VFLAG_SET | ATR_VFLAG_MODCACHE;
 				}
 
 				if (psvrmom->msr_pbs_ver != NULL) {

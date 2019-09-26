@@ -949,7 +949,7 @@ process_host_name_part(char *objname, svrattrl *plist, char **pname, int *ntype)
 	return  (0);				/* function successful    */
 }
 
-static char *nodeerrtxt = "Node description file update failed";
+//static char *nodeerrtxt = "Node description file update failed";
 
 /**
  * @brief
@@ -980,8 +980,8 @@ save_nodes_db_mom(mominfo_t *pmom)
 	struct pbsnode *np;
 	pbs_list_head wrtattr;
 	mom_svrinfo_t *psvrm;
-	int	isoff;
-	int	hascomment;
+//	int	isoff;
+//	int	hascomment;
 	int	nchild;
 
 	CLEAR_HEAD(wrtattr);
@@ -999,7 +999,7 @@ save_nodes_db_mom(mominfo_t *pmom)
 			/* this shouldn't happen, if it does, ignore it */
 			continue;
 		}
-
+		/*
 		if (np->nd_modified & NODE_UPDATE_OTHERS) {
 			DBPRT(("Saving node %s into the database\n", np->nd_name))
 			if (node_save_db(np) != 0) {
@@ -1007,10 +1007,7 @@ save_nodes_db_mom(mominfo_t *pmom)
 					LOG_WARNING, "nodes", nodeerrtxt);
 				return (-1);
 			}
-			/*
-			 * node record were deleted
-			 * so add state and comments only if set
-			 */
+
 			isoff = np->nd_state &
 				(INUSE_OFFLINE | INUSE_OFFLINE_BY_MOM | INUSE_SLEEP);
 
@@ -1026,7 +1023,8 @@ save_nodes_db_mom(mominfo_t *pmom)
 			write_single_node_state(np);
 		} else if (np->nd_modified & NODE_UPDATE_MOM) {
 			write_single_node_mom_attr(np);
-		}
+		}*/
+		node_save_db(np);
 	}
 
 	return 0;

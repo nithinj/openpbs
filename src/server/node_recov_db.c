@@ -280,8 +280,7 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 
 	for (j = 0; j < ND_ATR_LAST; ++j) {
 		/* skip certain ones: no-save and default values */
-		if ((node_attr_def[j].at_flags & ATR_DFLAG_NOSAVM) ||
-				(pnode->nd_attr[j].at_flags & ATR_VFLAG_DEFLT))
+		if (node_attr_def[j].at_flags & ATR_DFLAG_NOSAVM)
 			continue;
 
 		(void) node_attr_def[j].at_encode(&pnode->nd_attr[j],
@@ -294,10 +293,8 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 		node_attr_def[j].at_flags &= ~ATR_VFLAG_MODIFY;
 	}
 
-	vnode_sharing = (((pnode->nd_attr[ND_ATR_Sharing].at_flags & (ATR_VFLAG_SET | ATR_VFLAG_DEFLT))
-				== (ATR_VFLAG_SET | ATR_VFLAG_DEFLT))
-				&& ((pnode->nd_attr[ND_ATR_Sharing].at_val.at_long != VNS_UNSET)
-						&& (pnode->nd_attr[ND_ATR_Sharing].at_val.at_long != VNS_DFLT_SHARED)));
+	vnode_sharing = ((pnode->nd_attr[ND_ATR_Sharing].at_flags & (ATR_VFLAG_SET | ATR_VFLAG_DEFLT))
+				&& ((pnode->nd_attr[ND_ATR_Sharing].at_val.at_long != VNS_UNSET)));
 	numattr = vnode_sharing;
 	psvrl = (svrattrl *)GET_NEXT(wrtattr);
 	while (psvrl) {
@@ -326,14 +323,6 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 			(void) free(psvrl);
 
 			continue;
-		} else if (strcmp(psvrl->al_name, ATTR_NODE_resv_enable) == 0) {
-			/*  write resv_enable only if not default value */
-			if ((psvrl->al_flags & ATR_VFLAG_DEFLT) != 0) {
-				delete_link(&psvrl->al_link);
-				(void) free(psvrl);
-
-				continue;
-			}
 		}
 
 		/* every attribute to this point we write to database */
@@ -372,6 +361,7 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 		strcpy(attrs[count].attr_resc, "");
 		sprintf(pcpu_str, "%ld", pnode->nd_nsn);
 		attrs[count].attr_value = strdup(pcpu_str);
+		attrs[count].attr_flags = ATR_VFLAG_SET;
 		count++;
 	}
 
@@ -383,6 +373,7 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 		strncpy(attrs[count].attr_name, ATTR_NODE_Sharing, sizeof(attrs[count].attr_name));
 		strcpy(attrs[count].attr_resc, "");
 		attrs[count].attr_value = strdup(vn_str);
+		attrs[count].attr_flags = pnode->nd_attr[ND_ATR_Sharing].at_flags;
 		count++;
 	}
 	pdbnd->attr_list.attr_count = count;
