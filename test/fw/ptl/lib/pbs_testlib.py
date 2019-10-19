@@ -4969,7 +4969,7 @@ class Server(PBSService):
                 return False
         return self.start()
 
-    def log_match(self, msg=None, id=None, n=50, tail=True, allmatch=False,
+    def log_match(self, msg=None, id=None, n=100, tail=True, allmatch=False,
                   regexp=False, max_attempts=None, interval=None,
                   starttime=None, endtime=None, level=logging.INFO,
                   existence=True):
@@ -4983,7 +4983,7 @@ class Server(PBSService):
                    tracejob
         :type id: str
         :param n: 'ALL' or the number of lines to search through,
-                  defaults to 50
+                  defaults to 100
         :type n: str or int
         :param tail: If true (default), starts from the end of
                      the file
