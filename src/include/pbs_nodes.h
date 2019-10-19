@@ -456,7 +456,7 @@ extern	void	setup_notification(void);
 extern  struct	pbssubn  *find_subnodebyname(char *);
 extern	struct	pbsnode  *find_nodebyname(char *, int);
 extern	struct	pbsnode  *refresh_node(char *, char *, int);
-extern	int update_node_cache(pbs_node *);
+extern	int update_node_cache(pbs_node *, int);
 extern	int get_all_db_nodes();
 extern	struct	pbsnode  *find_nodebyaddr(pbs_net_t);
 extern	void	free_prop_list(struct prop*);
@@ -510,6 +510,7 @@ extern char *msg_daemonname;
 #ifndef PBS_MOM
 #define GET_NODEBYINDX_LOCKED(obj, idx)	find_nodebyname(obj[idx] ? obj[idx]->nd_name : NULL, LOCK)
 extern int node_save_db(struct pbsnode *pnode);
+extern int node_save_db2(struct pbsnode *, int);
 extern int nodejob_recov_db(void *nj);
 extern int nodejob_update_attr_db(pbs_db_nodejob_info_t *dbnode);
 extern pbs_db_nodejob_info_t * initialize_nodejob_db_obj(char *nd_name, char *job_id, int is_resv);
