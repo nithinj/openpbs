@@ -3177,7 +3177,7 @@ cross_link_mom_vnode(struct pbsnode *pnode, mominfo_t *pmom)
 			&pnode->nd_attr[(int) ND_ATR_Mom],
 			&tmpmom, INCR);
 		if (pnode->nd_modified != NODE_UPDATE_OTHERS)
-			pnode->nd_modified = NODE_UPDATE_MOM; /* since we modified nd_nummoms, save it */
+			pnode->nd_modified |= NODE_UPDATE_MOM; /* since we modified nd_nummoms, save it */
 		node_attr_def[(int) ND_ATR_Mom].at_free(&tmpmom);
 	}
 
@@ -8222,7 +8222,7 @@ set_last_used_time_node(void *pobj, int type)
 				snprintf(str_val, sizeof(str_val), "%d", time_int_val);
 				set_attr_svr(&(pnode->nd_attr[(int)ND_ATR_last_used_time]),
 						&node_attr_def[(int) ND_ATR_last_used_time], str_val);
-				pnode->nd_modified = NODE_UPDATE_OTHERS;
+				pnode->nd_modified |= NODE_UPDATE_OTHERS;
 			}
 			node_save_db(pnode);
 		}

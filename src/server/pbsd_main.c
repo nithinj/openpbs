@@ -1771,6 +1771,7 @@ try_db_again:
 		return (3);
 	}
 
+	DBPRT(("pbs_conf.pbs_use_tcp: %d", pbs_conf.pbs_use_tcp))
 	if (pbs_conf.pbs_use_tcp == 1) {
 		char *nodename = NULL;
 
