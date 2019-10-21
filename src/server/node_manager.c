@@ -4201,7 +4201,8 @@ is_request(int stream, int version)
 		DBPRT(("%s: IS_HELLOSVR port %lu\n", __func__, port))
 
 		if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL)
-			goto badcon;
+			if ((pmom = recover_mom(ipaddr, port)) == NULL)
+				goto badcon;
 
 		log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
 			LOG_NOTICE, pmom->mi_host, hellosvrmsg);
