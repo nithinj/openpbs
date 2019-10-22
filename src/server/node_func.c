@@ -1599,7 +1599,7 @@ fix_indirect_resc_targets(struct pbsnode *psourcend, resource *psourcerc, int in
 			psourcerc->rs_defin->rs_name, pn);
 		log_event(PBSEVENT_ADMIN, PBS_EVENTCLASS_NODE, LOG_CRIT,
 			nname, log_buffer);
-		return -1;
+		return PBSE_UNKNODE;
 	}
 
 	ptargetrc = find_resc_entry(&pnode->nd_attr[index], psourcerc->rs_defin);
@@ -1607,34 +1607,34 @@ fix_indirect_resc_targets(struct pbsnode *psourcend, resource *psourcerc, int in
 		sprintf(log_buffer, "resource %s on vnode points to missing resource on vnode %s", psourcerc->rs_defin->rs_name, pn+1);
 		log_event(PBSEVENT_ADMIN, PBS_EVENTCLASS_NODE, LOG_CRIT,
 			nname, log_buffer);
-		return -1;
-	} else {
-		if (set)
-			ptargetrc->rs_value.at_flags |= ATR_VFLAG_TARGET;
-		else
-			ptargetrc->rs_value.at_flags &= ~ATR_VFLAG_TARGET;
-
-		if (index == ND_ATR_ResourceAvail)
-			index = ND_ATR_ResourceAssn;
-		else
-			index = ND_ATR_ResourceAvail;
-
-		ptargetrc = find_resc_entry(&pnode->nd_attr[index], psourcerc->rs_defin);
-		if (!ptargetrc) {
-			/* For unset if the avail/assign counterpart is null, just return without creating the rescource.
-			* This happens only during node clean-up stage */
-			if (!set || index == ND_ATR_ResourceAvail)
-				return 0;
-			ptargetrc = add_resource_entry(&pnode->nd_attr[index], psourcerc->rs_defin);
-			if (!ptargetrc)
-				return PBSE_SYSTEM;
-		}
-
-		if (set)
-			ptargetrc->rs_value.at_flags |= ATR_VFLAG_TARGET;
-		else
-			ptargetrc->rs_value.at_flags &= ~ATR_VFLAG_TARGET;
+		return PBSE_UNKRESC;
 	}
+	
+	if (set)
+		ptargetrc->rs_value.at_flags |= ATR_VFLAG_TARGET;
+	else
+		ptargetrc->rs_value.at_flags &= ~ATR_VFLAG_TARGET;
+
+	if (index == ND_ATR_ResourceAvail)
+		index = ND_ATR_ResourceAssn;
+	else
+		index = ND_ATR_ResourceAvail;
+
+	ptargetrc = find_resc_entry(&pnode->nd_attr[index], psourcerc->rs_defin);
+	if (!ptargetrc) {
+		/* For unset if the avail/assign counterpart is null, just return without creating the rescource.
+		* This happens only during node clean-up stage */
+		if (!set || index == ND_ATR_ResourceAvail)
+			return 0;
+		ptargetrc = add_resource_entry(&pnode->nd_attr[index], psourcerc->rs_defin);
+		if (!ptargetrc)
+			return PBSE_SYSTEM;
+	}
+
+	if (set)
+		ptargetrc->rs_value.at_flags |= ATR_VFLAG_TARGET;
+	else
+		ptargetrc->rs_value.at_flags &= ~ATR_VFLAG_TARGET;
 
 	node_save_db(pnode);
 	return 0;
@@ -1710,15 +1710,16 @@ indirect_target_check(struct work_task *ptask)
 int
 fix_indirectness(resource *presc, struct pbsnode *pnode, int doit)
 {
-	int		     consumable;
-	resource            *presc_avail;	/* resource available */
-	resource            *presc_assn;	/* resource assigned  */
-	struct pbssubn	    *psn;
-	struct pbsnode      *ptargetnd;		/* target node		  */
-	resource            *ptargetrc;		/* target resource avail  */
-	struct resource_def *prdef;
-	int		     recover_ok;
-	int		     run_safety_check = 0;
+	int		consumable;
+	resource	*presc_avail;	/* resource available */
+	resource	*presc_assn;	/* resource assigned  */
+	struct pbssubn	*psn;
+	struct pbsnode	*ptargetnd;		/* target node		  */
+	resource	*ptargetrc;		/* target resource avail  */
+	struct resource_def	*prdef;
+	int		recover_ok;
+	int		run_safety_check = 0;
+	int		rc = 0;
 
 	prdef = presc->rs_defin;
 
@@ -1818,14 +1819,9 @@ fix_indirectness(resource *presc, struct pbsnode *pnode, int doit)
 		 */
 
 		if (presc->rs_value.at_flags & ATR_VFLAG_INDIRECT) {
-			int	rc;
 
 			/* setting to be indirect */
-			rc = fix_indirect_resc_targets(pnode, presc, (int)ND_ATR_ResourceAvail, 1);
-			if (rc == PBSE_SYSTEM)
-				return rc;
-			else if (rc == -1)
-				run_safety_check = 1;  /* need to set after nodes done */
+			rc = fix_indirect_resc_targets(pnode, presc, (int)ND_ATR_ResourceAvail, 1)
 
 			if (consumable && (presc_assn != NULL)) {
 				prdef->rs_free(&presc_assn->rs_value);	/* free first */
@@ -1851,7 +1847,7 @@ fix_indirectness(resource *presc, struct pbsnode *pnode, int doit)
 			(void)set_task(WORK_Immed, 0, indirect_target_check, NULL);
 
 	}
-	return 0;
+	return rc;
 }
 
 /**
