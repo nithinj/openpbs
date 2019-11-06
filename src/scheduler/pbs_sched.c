@@ -278,6 +278,26 @@ server_disconnect(int connect)
 
 	return 1;
 }
+
+static void
+close_server_conns()
+{
+	int j;
+
+	if (connector != -1) {
+		if (get_max_servers() > 1) {
+			for (j = 0; j < get_current_servers(); j++) {
+				FD_CLR(connection[connector].ch_shards[j]->secondary_sd, &master_fdset);
+				close(connection[connector].ch_shards[j]->sd);
+				close(connection[connector].ch_shards[j]->secondary_sd);
+			}
+		} else {
+			FD_CLR(connection[connector].ch_secondary_socket, &master_fdset);
+			close(connection[connector].ch_socket);
+			close(connection[connector].ch_secondary_socket);
+		}
+	}
+}
 /**
  * @brief
  * 		assign socket to the connect handle and unlock the connectable thread.
@@ -294,19 +314,21 @@ socket_to_conn(int sock, int index)
 	if (get_max_servers() > 1) {
 		if (connection[connector].ch_shards[index]->sd == -1) {
 			connection[connector].ch_shards[index]->sd = sock;
+		}
+		else {
+			connection[connector].ch_shards[index]->secondary_sd = sock;
 			FD_SET(sock, &master_fdset);
 		}
-		else
-			connection[connector].ch_shards[index]->secondary_sd = sock;
 
 		connection[connector].ch_shards[index]->state = SHARD_CONN_STATE_CONNECTED;
 		connection[connector].ch_shards[index]->state_change_time = time(0);
 	} else {
-		if (connection[connector].ch_socket != -1)
+		if (connection[connector].ch_socket != -1) {
 			connection[connector].ch_secondary_socket = sock;
+			FD_SET(sock, &master_fdset);
+		}
 		else {
 			connection[connector].ch_socket= sock;
-			FD_SET(sock, &master_fdset);
 		}
 	}
 
@@ -862,7 +884,6 @@ main(int argc, char *argv[])
 #ifdef  RLIMIT_CORE
 	int      	char_in_cname = 0;
 #endif  /* RLIMIT_CORE */
-	int 		j;
 
 	/*the real deal or show version and exit?*/
 
@@ -1397,12 +1418,16 @@ main(int argc, char *argv[])
 
 		for (i = 0; i < get_current_servers(); i++) {
 			int sock_to_check;
+			int sock_to_check_primary;
 
 			if (get_max_servers() > 1) {
-				sock_to_check = connection[connector].ch_shards[i]->sd;
+				sock_to_check = connection[connector].ch_shards[i]->secondary_sd;
+				sock_to_check_primary = connection[connector].ch_shards[i]->sd;
 			}
-			else
-				sock_to_check = connection[connector].ch_socket;
+			else {
+				sock_to_check = connection[connector].ch_secondary_socket;
+				sock_to_check_primary = connection[connector].ch_socket;
+			}
 
 			if ((sock_to_check != -1) && FD_ISSET(sock_to_check, &read_fdset)) {
 				int ret;
@@ -1412,25 +1437,30 @@ main(int argc, char *argv[])
 					close(sock_to_check);
 					FD_CLR(sock_to_check, &master_fdset);
 					if (get_max_servers() > 1) {
-						connection[connector].ch_shards[i]->sd = -1;
-						CS_close_socket(connection[connector].ch_shards[i]->secondary_sd);
-						close(connection[connector].ch_shards[i]->secondary_sd);
-						FD_CLR(connection[connector].ch_shards[i]->secondary_sd, &master_fdset);
 						connection[connector].ch_shards[i]->secondary_sd = -1;
+						CS_close_socket(connection[connector].ch_shards[i]->sd);
+						close(connection[connector].ch_shards[i]->sd);
+						connection[connector].ch_shards[i]->sd = -1;
 						connection[connector].ch_shards[i]->state = SHARD_CONN_STATE_DOWN;
 					}
 					else {
-						connection[connector].ch_socket = -1;
-						CS_close_socket(connection[connector].ch_secondary_socket);
-						close(connection[connector].ch_secondary_socket);
-						FD_CLR(connection[connector].ch_secondary_socket, &master_fdset);
 						connection[connector].ch_secondary_socket = -1;
+						CS_close_socket(connection[connector].ch_socket);
+						close(connection[connector].ch_socket);
+						connection[connector].ch_socket = -1;
 					}
-					log_err(errno, __func__, "get_sched_cmd");
+					snprintf(log_buffer, sizeof(log_buffer), "get_sched_cmd failed, errno=%d in function %s. "
+							"One  of the reasons includes server might have shutdown",
+							errno, __func__);
+					schdlog(PBSEVENT_DEBUG2, PBS_EVENTCLASS_SERVER, LOG_DEBUG, __func__,
+						log_buffer);
 				} else {
 					if (connector >= 0) {
 						/* update sched object attributes on server */
-						update_svr_schedobj(connector, cmd, alarm_time);
+						if (update_svr_schedobj(connector, cmd, alarm_time) == 0) {
+							close_server_conns();
+							break;
+						}
 
 						if (sigprocmask(SIG_BLOCK, &allsigs, &oldsigs) == -1)
 							log_err(errno, __func__, "sigprocmask(SIG_BLOCK)");
@@ -1457,31 +1487,25 @@ main(int argc, char *argv[])
 						else
 							second_sd = connection[connector].ch_secondary_socket;
 
-						if (pbs_sched_cycle_end(connector, sc_name, 1, NULL)) {
-							char *errmsg;
-							errmsg = pbs_geterrmsg(connector);
-							if (errmsg == NULL)
-								errmsg = "";
-							sprintf(log_buffer, "pbs_sched_cycle_end while sending sched cycle start indication failed: %s (%d)",
-									errmsg, pbs_errno);
-							schdlog(PBSEVENT_SCHED, PBS_EVENTCLASS_SERVER, LOG_NOTICE, __func__,
-								log_buffer);
-						}
-
 						if (schedule(cmd, connector, runjobid))  /* magic happens here */ {
 							go = 0;
+							close_server_conns();
+							break;
 						}
 
-						ret = pbs_sched_cycle_end(connector, sc_name, 0, NULL);
+						ret = pbs_sched_cycle_end(sock_to_check_primary, sc_name, 0, NULL);
 						if (ret != 0) {
 							char *errmsg;
 							errmsg = pbs_geterrmsg(connector);
 							if (errmsg == NULL)
 								errmsg = "";
-							sprintf(log_buffer, "pbs_sched_cycle_end while sending sched cycle end indication failed : %s (%d)",
+							snprintf(log_buffer, sizeof(log_buffer), "pbs_sched_cycle_end while sending sched cycle end indication failed : %s (%d)."
+									"One  of the reasons includes server might have shutdown",
 									errmsg, pbs_errno);
-							schdlog(PBSEVENT_SCHED, PBS_EVENTCLASS_SERVER, LOG_NOTICE, __func__,
+							schdlog(PBSEVENT_DEBUG2, PBS_EVENTCLASS_SERVER, LOG_DEBUG, __func__,
 								log_buffer);
+							close_server_conns();
+							break;
 						}
 
 						if (runjobid != NULL) {
@@ -1503,18 +1527,6 @@ main(int argc, char *argv[])
 	lock_out(lockfds, F_UNLCK);
 
 	(void)close(server_sock);
-
-	if (connector != -1) {
-		if (get_max_servers() > 1) {
-			for (j = 0; j < get_current_servers(); j++) {
-				close(connection[connector].ch_shards[j]->sd);
-				close(connection[connector].ch_shards[j]->secondary_sd);
-			}
-		} else {
-			close(connection[connector].ch_socket);
-			close(connection[connector].ch_secondary_socket);
-		}
-	}
 
 	exit(0);
 }

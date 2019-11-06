@@ -128,6 +128,57 @@ catchalrm(int sig)
 		server_name, "timeout attempting to contact scheduler");
 }
 
+int
+send_int(int sock, int num)
+{
+        int32_t conv = htonl(num);
+        char *data = (char*)&conv;
+        int left = sizeof(conv);
+        int rc;
+        do {
+                rc = write(sock, data, left);
+                if (rc < 0) {
+                    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                        continue;
+                    }
+                    else if (errno != EINTR) {
+                        return -1;
+                    }
+                }
+                else {
+                    data += rc;
+                    left -= rc;
+                }
+        } while (left > 0);
+
+        return 0;
+}
+
+int
+send_str(int sock, char *str)
+{
+        int left = strlen(str);
+        int rc;
+        do {
+                rc = write(sock, str, left);
+                if (rc < 0) {
+                    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                        continue;
+                    }
+                    else if (errno != EINTR) {
+                        return -1;
+                    }
+                }
+                else {
+                    str += rc;
+                    left -= rc;
+                }
+        } while (left > 0);
+
+        return 0;
+}
+
+
 /**
  * @brief
  *		Sends 'cmd'  over to network 'sock', and if 'cmd' is SCH_SCHEDULE_AJOB,  *	sends also the 'jobid'.
@@ -144,22 +195,26 @@ catchalrm(int sig)
 int
 put_sched_cmd(int sock, int cmd, char *identifier)
 {
-	int   ret;
+	int bytes_tosend;
 
-	DIS_tcp_setup(sock);
-	if ((ret = diswsi(sock, cmd)) != DIS_SUCCESS)
+	if (send_int(sock, cmd)) {
 		goto err;
-
+	}
 	if ((cmd == SCH_SCHEDULE_AJOB) || (cmd == SCH_SVR_IDENTIFIER)) {
-		if ((ret = (diswst(sock, identifier))) != DIS_SUCCESS)
+		bytes_tosend = strlen(identifier);
+		if (bytes_tosend == 0)
 			goto err;
+		if (send_int(sock, bytes_tosend)) {
+			goto err;
+		}
+		if (send_str(sock, identifier)) {
+			goto err;
+		}
 	}
 
-	(void)DIS_tcp_wflush(sock);
 	return 0;
-
 err:
-	sprintf(log_buffer, "write to scheduler failed, err=%d", ret);
+	sprintf(log_buffer, "put_sched_cmd end errno =%d", errno);
 	log_event(PBSEVENT_SCHED, PBS_EVENTCLASS_SERVER, LOG_INFO, server_name,
 		log_buffer);
 	return -1;
@@ -368,7 +423,7 @@ schedule_high(pbs_sched *psched)
 		if ((psched = recov_sched_from_db(NULL, psched->sc_name, 0)))
 			return -1;
 
-		if ((s = contact_sched(psched->svr_do_sched_high, NULL, psched, PRIMARY)) < 0) {
+		if ((s = contact_sched(psched->svr_do_sched_high, NULL, psched, SECONDARY)) < 0) {
 			set_attr_svr(&(psched->sch_attr[(int) SCHED_ATR_sched_state]), &sched_attr_def[(int) SCHED_ATR_sched_state], SC_DOWN);
 			sched_save_db(psched, SVR_SAVE_FULL);
 			return (-1);
@@ -449,7 +504,7 @@ schedule_jobs(pbs_sched *psched)
 		if ((psched = recov_sched_from_db(NULL, psched->sc_name, 0)) == NULL)
 			return -1;
 
-		if ((s = contact_sched(cmd, jid,  psched, PRIMARY)) < 0) {
+		if ((s = contact_sched(cmd, jid,  psched, SECONDARY)) < 0) {
 			set_attr_svr(&(psched->sch_attr[(int) SCHED_ATR_sched_state]), &sched_attr_def[(int) SCHED_ATR_sched_state], SC_DOWN);
 			sched_save_db(psched, SVR_SAVE_FULL);
 			return (-1);
@@ -510,14 +565,16 @@ scheduler_close(int sock)
 	if (psched == NULL)
 		return;
 
+	psched->sched_cycle_started = 0;
+
 	set_attr_svr(&(psched->sch_attr[(int) SCHED_ATR_sched_state]), &sched_attr_def[(int) SCHED_ATR_sched_state], SC_IDLE);
 
-	if ((sock != -1) && (sock == psched->scheduler_sock2)) {
-		psched->scheduler_sock2 = -1;
+	if ((sock != -1) && (sock == psched->scheduler_sock)) {
+		psched->scheduler_sock = -1;
 		return;	/* nothing to check if scheduler_sock2 */
 	}
 
-	set_sched_sock(-1, psched);
+	psched->scheduler_sock2 = -1;
 
 	/* clear list of jobs which were altered/modified during cycle */
 	am_jobs.am_used = 0;
@@ -549,7 +606,7 @@ scheduler_close(int sock)
 		}
 		pdefr = next_pdefr;
 	}
-	psched->sched_cycle_started = 0;
+
 	server.sv_attr[(int)SRV_ATR_State].at_flags |= ATR_VFLAG_MODCACHE;
 }
 

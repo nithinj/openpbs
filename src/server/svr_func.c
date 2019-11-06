@@ -806,6 +806,7 @@ void
 set_sched_sock(int s, pbs_sched *psched)
 {
 	psched->scheduler_sock = s;
+	psched->scheduler_sock2 = s;
 }
 
 

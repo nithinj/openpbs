@@ -258,6 +258,13 @@ query_server(status *pol, int pbs_sd)
 	if (dflt_sched)
 		bs_resvs = stat_resvs(pbs_sd);
 
+	if (bs_resvs  == NULL && pbs_errno != 0) {
+		pbs_statfree(server);
+		sinfo->fairshare = NULL;
+		free_server(sinfo, 0);
+		return NULL;
+	}
+
 	/* get the nodes, if any - NOTE: will set sinfo -> num_nodes */
 	if ((sinfo->nodes = query_nodes(pbs_sd, sinfo)) == NULL) {
 		pbs_statfree(server);

@@ -1882,7 +1882,7 @@ try_db_again:
 		if (server.sv_attr[(int)SRV_ATR_scheduling].at_val.at_long) {
 			/* Bring up scheduler here */
 			pbs_scheduler_addr = get_hostaddr(pbs_conf.pbs_secondary);
-			if (contact_sched(SCH_SCHEDULE_NULL, NULL, dflt_scheduler, PRIMARY) < 0) {
+			if (contact_sched(SCH_SCHEDULE_NULL, NULL, dflt_scheduler, SECONDARY) < 0) {
 				char **workenv;
 				char schedcmd[MAXPATHLEN + 1];
 				/* save the current, "safe", environment.
@@ -1986,7 +1986,7 @@ try_db_again:
 		 * Make the scheduler (re)-read the configuration
 		 * and fairshare usage.
 		 */
-		(void)contact_sched(SCH_CONFIGURE, NULL,  dflt_scheduler, PRIMARY);
+		(void)contact_sched(SCH_CONFIGURE, NULL,  dflt_scheduler, SECONDARY);
 	}
 
 	/*
@@ -2032,15 +2032,18 @@ try_db_again:
 			for (psched = (pbs_sched*) GET_NEXT(svr_allscheds); psched; psched = (pbs_sched*) GET_NEXT(psched->sc_link)) {
 				/* if time or event says to run scheduler, do it */
 
-				if (psched->scheduler_sock == -1 && psched->scheduler_sock2 == -1) {
+				if (psched->scheduler_sock == -1 || psched->scheduler_sock2 == -1) {
 					connect_to_scheduler(psched);
 					continue;
 				}
 
+				/*commenting the following code as it is not needed for POC. we have design in place
+				 * and do it later.
+				 */
 				/* if we have a high prio sched command, send it 1st */
-				if (psched->sch_attr[SCHED_ATR_scheduling].at_val.at_long &&
+				/*if (psched->sch_attr[SCHED_ATR_scheduling].at_val.at_long &&
 					psched->svr_do_sched_high != SCH_SCHEDULE_NULL)
-					schedule_high(psched);
+					schedule_high(psched);*/
 				if (psched->svr_do_schedule == SCH_SCHEDULE_RESTART_CYCLE) {
 
 					/* send only to existing connection */
@@ -2049,7 +2052,8 @@ try_db_again:
 					/* NOTE: both primary and secondary scheduler */
 					/* connect must have been setup to be valid */
 					if ((psched->scheduler_sock2 != -1) &&
-						(psched->scheduler_sock != -1)) {
+						(psched->scheduler_sock != -1) &&
+						(psched->sched_cycle_started == 1)) {
 
 						if (put_sched_cmd(psched->scheduler_sock2,
 								psched->svr_do_schedule, NULL) == 0) {
@@ -2151,7 +2155,7 @@ try_db_again:
 	/* if brought up the Secondary Scheduler, take it down */
 
 	if (brought_up_alt_sched == 1)
-		(void)contact_sched(SCH_QUIT, NULL,  dflt_scheduler, PRIMARY);
+		(void)contact_sched(SCH_QUIT, NULL,  dflt_scheduler, SECONDARY);
 
 	/* if Moms are to to down as well, tell them */
 

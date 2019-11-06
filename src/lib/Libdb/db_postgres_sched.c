@@ -276,14 +276,14 @@ pg_db_load_sched(pbs_db_conn_t *conn, pbs_db_obj_info_t *obj, int lock)
 
 	if ( psch->partition_name[0] != '\0') {
 		SET_PARAM_STR(conn, psch->partition_name, 0);
-		if ((rc = pg_db_query(conn, STMT_SELECT_SCHED_PARTITION, 1, 0, &res)) != 0)
+		if ((rc = pg_db_query(conn, STMT_SELECT_SCHED_PARTITION, 1, lock, &res)) != 0)
 			return rc;
 	} else if (psch->sched_name[0] != '\0') {
 		SET_PARAM_STR(conn, psch->sched_name, 0);
-	if ((rc = pg_db_query(conn, STMT_SELECT_SCHED, 1, 0, &res)) != 0)
+	if ((rc = pg_db_query(conn, STMT_SELECT_SCHED, 1, lock, &res)) != 0)
 		return -1;
 	} else {
-		if ((rc = pg_db_query(conn, STMT_SELECT_DFLT_SCHED, 0, 0, &res)) != 0)
+		if ((rc = pg_db_query(conn, STMT_SELECT_DFLT_SCHED, 0, lock, &res)) != 0)
 			return rc;
 	}
 

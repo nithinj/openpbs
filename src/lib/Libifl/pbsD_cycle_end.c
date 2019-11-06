@@ -66,61 +66,6 @@
 int
 __pbs_sched_cycle_end(int c, char *scname, int start_or_end, char *extend)
 {
-	int rc = 0;
-	int sock = -1;
-	int i;
-	int count = 0;
-	/*struct batch_reply *reply;*/
+	return  PBSD_sched_cycle_end_put(c, scname, start_or_end, extend, 0, NULL);
 
-	if ((scname == NULL) || (*scname == '\0'))
-		return (pbs_errno = PBSE_IVALREQ);
-
-	/* initialize the thread context data, if not already initialized */
-	if (pbs_client_thread_init_thread_context() != 0)
-		return pbs_errno;
-
-	/* lock pthread mutex here for this connection */
-	/* blocking call, waits for mutex release */
-	if (pbs_client_thread_lock_connection(c) != 0)
-		return pbs_errno;
-
-	/* send request to all servers that are up */
-	if (get_max_servers() > 1) {
-		int errd = 0;
-		int rc_errd = 0;
-		for (i = 0; i < get_current_servers(); i++) {
-			if (connection[c].ch_shards[i]->state == SHARD_CONN_STATE_CONNECTED)
-				sock = connection[c].ch_shards[i]->sd;
-			if (sock != -1) {
-				if ((rc = PBSD_sched_cycle_end_put(sock, scname, start_or_end, extend, 0, NULL)) != 0) {
-					errd++;
-					rc_errd = rc;
-				} else {
-					count++;
-				}
-			} else
-				rc = -1;
-		}
-		if (count == 0) {
-			/* could not send to any servers, all down */
-			rc = PBSE_NOSERVER;
-		}
-		if (errd > 0) {
-			rc = rc_errd;
-		}
-	} else {
-		sock = connection[c].ch_socket;
-		if (sock != -1)
-			rc = PBSD_sched_cycle_end_put(sock, scname, start_or_end, extend, 0, NULL);
-		else
-			rc = -1;
-	}
-
-	connection[c].ch_errno = rc;
-
-	/* unlock the thread lock and update the thread context data */
-	if (pbs_client_thread_unlock_connection(c) != 0)
-		return pbs_errno;
-
-	return rc;
 }
