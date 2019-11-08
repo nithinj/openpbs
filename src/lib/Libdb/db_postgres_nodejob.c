@@ -336,8 +336,6 @@ pg_db_find_nodejob(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj,
 	pg_query_state_t *state = (pg_query_state_t *) st;
 	pbs_db_nodejob_info_t *pnj = obj->pbs_db_un.pbs_db_nodejob;
 
-	DBPRT(("Entering %s", __func__))
-
 	if (!state)
 		return -1;
 
@@ -388,7 +386,6 @@ pg_db_next_nodejob(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj)
 void
 pg_db_reset_nodejob(pbs_db_obj_info_t *obj)
 {
-	DBPRT(("Entering %s", __func__))
 	free_db_attr_list(&(obj->pbs_db_un.pbs_db_nodejob->attr_list));
 }
 
