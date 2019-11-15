@@ -4221,7 +4221,7 @@ is_request(int stream, int version)
 		DBPRT(("%s: IS_HELLOSVR port %lu\n", __func__, port))
 
 		if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL)
-			if ((pmom = recover_mom(ipaddr, port)) == NULL)
+			if ((pmom = recover_mom(ipaddr, port, 0)) == NULL)
 				goto badcon;
 
 		log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
@@ -6358,7 +6358,7 @@ set_nodes(void *pobj, int objtype, char *execvnod_in, char **execvnod_out, char 
 		pbsnode     *hw_pnd;	/* ptr to node */
 		pbsnode	    *hw_natvn;	/* pointer to "natural" vnode	     */
 		mominfo_t*   hw_mom;
-		int          hw_ncpus;	/* num of cpus needed from this node */
+		uint          hw_ncpus;	/* num of cpus needed from this node */
 		int	     hw_chunk;	/* non-zero if start of a chunk      */
 		int          hw_index;	/* index of job on Mom if hw_chunk   */
 		int	     hw_htcpu;	/* sum of cpus on this Mom, hw_chuhk */
@@ -6725,6 +6725,7 @@ set_nodes(void *pobj, int objtype, char *execvnod_in, char **execvnod_out, char 
 
 		for (i = 0; i < ndindex; ++i) {
 			int share_node;
+			struct pbssubn *lst_sn = NULL;
 
 			pnode = (phowl+i)->hw_pnd;
 
@@ -6751,12 +6752,8 @@ set_nodes(void *pobj, int objtype, char *execvnod_in, char **execvnod_out, char 
 					jp->job   = pjob;
 				}
 			} else {
-				struct pbssubn *lst_sn;
-				int ncpus;
-
-				lst_sn = NULL;
+				uint ncpus;
 				for (ncpus = 0; ncpus < (phowl+i)->hw_ncpus; ncpus++) {
-
 					while (snp->inuse != INUSE_FREE) {
 						if (snp->next)
 							snp = snp->next;
@@ -6773,8 +6770,7 @@ set_nodes(void *pobj, int objtype, char *execvnod_in, char **execvnod_out, char 
 								return PBSE_SYSTEM;
 							}
 							break;
-						} else
-							break; /* if last subnode, use it even if in use */
+						}
 					}
 
 					snp->inuse |= alloc_how;
