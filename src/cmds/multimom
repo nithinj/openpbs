@@ -20,6 +20,8 @@ fi
 ulimit -n 10000
 ulimit -c unlimited
 
+$PBS_EXEC/bin/qmgr -c "d n @default"
+
 echo "Moms required to be created are from $n to $l with port starting from $port"
 
 start_time=`date +%s`
@@ -89,6 +91,8 @@ do
 		echo "File $mom_conf missing"
 		exit 1
 	fi
+
+	echo "\$usecp *:/dev/null /dev/null" >> $mom_conf
 
 	echo "PBS_MOM_SERVICE_PORT=$port" >> $conf_file
 	echo "PBS_MANAGER_SERVICE_PORT=`expr $port + 1`" >> $conf_file
