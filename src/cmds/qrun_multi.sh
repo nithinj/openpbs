@@ -83,7 +83,7 @@ create_cluster $nservers $nmoms
 
 qmgr -c 's s scheduling=0'; qmgr -c "s s acl_roots+=`whoami`" > /dev/null 2>&1
 qmgr -c 's s job_history_enable=1'
-qdel `qselect` > /dev/null 2>&1
+qdel -Wforce `qselect` > /dev/null 2>&1
 
 echo "parameters supplied: nthreads=$nthreads, njobs=$njobs"
 
@@ -131,6 +131,8 @@ perf=`bc -l <<< "scale=3; $njobs / $diff"`
 echo "Time(ms) started=$start_time, ended=$end_time"
 echo "Total jobs Running=$total_jobs, time taken(secs.ms)=$diff, jobs/sec=$perf"
 
+echo "Collecting Results..."
+sleep 5
 . /etc/pbs.conf
 pbs_loganalyzer -s `srv_log`
 
