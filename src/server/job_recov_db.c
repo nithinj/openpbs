@@ -205,6 +205,10 @@ svr_to_db_job(job *pjob, pbs_db_job_info_t *dbjob, int updatetype)
 static int
 db_to_svr_job(job *pjob,  pbs_db_job_info_t *dbjob)
 {
+	char 		 *pnodespec;
+	int old_state = pjob->ji_qs.ji_state;
+	int old_flags = pjob->ji_qs.ji_svrflags;
+
 	/* Variables assigned constant values are not stored in the DB */
 	pjob->ji_qs.ji_jsversion = JSVERSION;
 	strcpy(pjob->ji_qs.ji_jobid, dbjob->ji_jobid);
@@ -252,6 +256,21 @@ db_to_svr_job(job *pjob,  pbs_db_job_info_t *dbjob)
 		return -1;
 
 	strcpy(pjob->ji_savetm, dbjob->ji_savetm);
+
+	pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
+	if (old_state != pjob->ji_qs.ji_state) {
+		if (old_state == JOB_STATE_RUNNING) {
+			if (old_flags & JOB_SVFLG_RescAssn)
+				pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
+			set_resc_assigned((void *)pjob, 0, DECR);
+			dealloc_hosts(pjob, pnodespec);
+		} else if (pjob->ji_qs.ji_state == JOB_STATE_RUNNING) {
+			if (!(old_flags & JOB_SVFLG_RescAssn))
+				pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
+			alloc_hosts(pjob, pnodespec, JOB_OBJECT);
+			set_resc_assigned((void *)pjob, 0, INCR);
+		}
+	}
 
 	return 0;
 }

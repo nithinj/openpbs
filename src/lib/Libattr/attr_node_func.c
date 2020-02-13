@@ -502,23 +502,76 @@ encode_jobs(attribute *pattr, pbs_list_head *ph, char *aname, char *rname, int m
 
 {
 	svrattrl	*pal;
-	struct pbs_job_list 	*jlist;
+	struct jobinfo  *jip;
+	struct pbsnode	*pnode;
+	struct pbssubn 	*psubn;
+	int		i;
+	int		j;
+	int		offset;
+	int		jobcnt;		/*number of jobs using the node     */
+	int		strsize;	/*computed string size		    */
+	char		*job_str;	/*holds comma separated list of jobs*/
 
 	if (!pattr)
 		return (-1);
 	if (!(pattr->at_flags & ATR_VFLAG_SET) || !pattr->at_val.at_jinfo)
 		return (0);		/*nothing to report back   */
-	jlist = pattr->at_val.at_jinfo->job_list;
-	if (!jlist || (jlist->njobs == 0))
-		return 0;
 
-	pal = attrlist_create(aname, rname,  jlist->offset + 1);
+	/*cnt number of jobs and estimate size of string buffer required*/
+	jobcnt = 0;
+	strsize = 1;			/*allow for terminating null char*/
+	pnode = pattr->at_val.at_jinfo;
+	for (psubn = pnode->nd_psn; psubn; psubn = psubn->next) {
+		for (jip = psubn->jobs; jip; jip = jip->next) {
+			jobcnt++;
+			/* add 3 to length of node name for slash, comma, and space */
+			/* plus one for the cpu index				   */
+			strsize += strlen(jip->job->ji_qs.ji_jobid) + 4;
+			i = psubn->index;
+			/* now add additional space needed for the cpu index */
+			while ((i = i/10) != 0)
+				strsize++;
+		}
+	}
+
+	if (jobcnt == 0)
+		return (0);		/*no jobs currently on this node*/
+
+	else if (!(job_str = (char *)malloc(strsize+1)))
+		return -(PBSE_SYSTEM);
+
+	job_str[0] = '\0';
+	i = 0;
+	j = 0;
+	offset = 0;
+	for (psubn = pnode->nd_psn; psubn; psubn = psubn->next) {
+		for (jip = psubn->jobs; jip; jip = jip->next) {
+			if (i != 0) {
+				sprintf(job_str + offset, ", ");
+				offset += 2; /* accounting for comma and space */
+			} else
+				i++;
+
+			sprintf(job_str + offset, "%s/%ld",
+				jip->job->ji_qs.ji_jobid, psubn->index);
+			offset += strlen(jip->job->ji_qs.ji_jobid) + 1;
+			j = psubn->index;
+			while ((j = j/10) != 0)
+				offset++;
+			offset++;
+		}
+	}
+
+
+	pal = attrlist_create(aname, rname, (int)strlen(job_str) + 1  );
 	if (pal == NULL) {
+		free(job_str);
 		return -(PBSE_SYSTEM);
 	}
 
-	(void)strcpy(pal->al_value, jlist->job_str);
+	(void)strcpy(pal->al_value, job_str);
 	pal->al_flags = ATR_VFLAG_SET;
+	free(job_str);
 
 	if (ph)
 		append_link(ph, &pal->al_link, pal);
@@ -554,28 +607,55 @@ int
 encode_resvs(attribute *pattr, pbs_list_head *ph, char *aname, char *rname, int mode, svrattrl **rtnl)
 {
 	svrattrl	*pal;
-	struct pbs_job_list 	*rlist;
+	struct resvinfo *rip;
+	struct pbsnode	*pnode;
+	int		i;
+	int		resvcnt;	/*number of reservations on the node*/
+	int		strsize;	/*computed string size		    */
+	char		*resv_str;	/*comma separated reservations list */
 
 	if (!pattr)
 		return (-1);
-
 	if (!(pattr->at_flags & ATR_VFLAG_SET) || !pattr->at_val.at_jinfo)
 		return (0);                  /*nothing to report back   */
 
-	rlist = pattr->at_val.at_jinfo->resv_list;
-	if (!rlist)
-		return 0;
+	/*cnt number of reservations and estimate size of string buffer required*/
+	resvcnt = 0;
+	strsize = 1;			     /*allow for terminating null char*/
+	pnode = pattr->at_val.at_jinfo;
+	for (rip = pnode->nd_resvp; rip; rip = rip->next) {
+		resvcnt++;
+		strsize += strlen(rip->resvp->ri_qs.ri_resvID) + 9; /*4digit*/
+	}
 
-	if (*rlist->job_str == 0)
+	if (resvcnt == 0)
 		return (0);	      /*no reservations currently on this node*/
 
-	pal = attrlist_create(aname, rname, rlist->offset + 1);
+	else if (!(resv_str = (char *)malloc(strsize)))
+		return -(PBSE_SYSTEM);
+
+	resv_str[0] = '\0';
+	i = 0;
+	for (rip = pnode->nd_resvp; rip; rip = rip->next) {
+		if (i != 0)
+			strcat(resv_str, ", ");
+		else
+			i++;
+
+		sprintf(resv_str + strlen(resv_str), "%s",
+			rip->resvp->ri_qs.ri_resvID);
+	}
+
+
+	pal = attrlist_create(aname, rname, (int)strlen(resv_str) + 1  );
 	if (pal == NULL) {
+		free(resv_str);
 		return -(PBSE_SYSTEM);
 	}
 
-	(void)strcpy(pal->al_value, rlist->job_str);
+	(void)strcpy(pal->al_value, resv_str);
 	pal->al_flags = ATR_VFLAG_SET;
+	free(resv_str);
 
 	if (ph)
 		append_link(ph, &pal->al_link, pal);

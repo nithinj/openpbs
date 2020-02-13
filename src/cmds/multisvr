@@ -6,6 +6,7 @@ if [ $# -gt 0 ]; then
 fi
 
 . /etc/pbs.conf
+[[ ! -z $PBS_CONF_FILE ]] && . $PBS_CONF_FILE
 
 if [ "x${PBS_SERVER_INSTANCES}" = "x" ]; then
 	echo "Multiserver not configured correctly. Starting single server"

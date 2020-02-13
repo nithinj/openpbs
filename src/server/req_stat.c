@@ -104,6 +104,7 @@ extern time_t	     time_now;
 extern char	    *msg_init_norerun;
 extern int resc_access_perm;
 extern long svr_history_enable;
+extern int sched_trx_chk;
 
 /* Extern Functions */
 
@@ -692,7 +693,8 @@ req_stat_que(struct batch_request *preq)
 		rc = status_que(pque, preq, &preply->brp_un.brp_status);
 
 	} else {	/* get status of queues */
-
+		if (sched_trx_chk == SCHED_TRX_NOCHK)
+			get_all_db_jobs();
 		pque = (pbs_queue *)GET_NEXT(svr_queues);
 		while (pque) {
 			if((time(0) - pque->qu_last_refresh_time) >= OBJ_REFRESH_TIME_PERIOD) {
@@ -852,6 +854,8 @@ req_stat_node(struct batch_request *preq)
 		rc = status_node(pnode, preq, &preply->brp_un.brp_status);
 
 	} else {			/* get status of all nodes */
+		if (sched_trx_chk == SCHED_TRX_NOCHK)
+			get_all_db_jobs();
 		get_all_db_nodes(NULL);
 		for (i = 0; i < svr_totnodes; i++) {
 			pnode = pbsndlist[i];
@@ -916,7 +920,7 @@ status_node(struct pbsnode *pnode, struct batch_request *preq, pbs_list_head *ps
 		return (PBSE_PERM);
 
 	/* Read node job table and encode attribute values */
-	encode_nodejob(pnode);
+	//encode_nodejob(pnode);
 
 	/* sync state attribute with nd_state */
 
@@ -992,6 +996,7 @@ req_stat_svr(struct batch_request *preq)
 
 
 	svr_recov_db(0);
+	//get_all_db_jobs();
 	/* update count and state counts from sv_numjobs and sv_jobstates */
 
 	server.sv_attr[(int)SRV_ATR_TotalJobs].at_val.at_long = server.sv_numjobs;

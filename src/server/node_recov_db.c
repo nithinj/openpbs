@@ -183,22 +183,17 @@ node_recov_db(char *nd_name, struct pbsnode *pnode, int lock)
 	pbs_db_node_info_t dbnode;
 	int rc = 0;
 
-	strcpy(dbnode.nd_name, nd_name);
-	dbnode.nd_savetm[0] = '\0';
-	dbnode.attr_list.attributes = NULL;
-
 	if (pnode) {
 		if (memcache_good(&pnode->trx_status, lock))
 			return pnode;
 		strcpy(dbnode.nd_savetm, pnode->nd_savetm);
 	}
 
+	strcpy(dbnode.nd_name, nd_name);
+	dbnode.nd_savetm[0] = '\0';
+	dbnode.attr_list.attributes = NULL;
 	obj.pbs_db_obj_type = PBS_DB_NODE;
 	obj.pbs_db_un.pbs_db_node = &dbnode;
-
-	if (lock)
-		if (pbs_db_begin_trx(conn, 0, 0) != 0)
-			goto db_err;
 
 	if ((rc = pbs_db_load_obj(conn, &obj, lock)) == -1)
 		goto db_err;
@@ -213,8 +208,6 @@ node_recov_db(char *nd_name, struct pbsnode *pnode, int lock)
 				effective_node_delete(pnode);
 			pbs_db_reset_obj(&obj);
 		}
-		if (lock)
-			(void)pbs_db_end_trx(conn,PBS_DB_COMMIT);
 		return NULL;
 	}
 
@@ -230,9 +223,10 @@ node_recov_db(char *nd_name, struct pbsnode *pnode, int lock)
 		goto db_err;
 
 db_commit:
-	if (lock && pnode) {
-		pnode->nd_modified |= NODE_LOCKED;
+	if (pnode) {
 		memcache_update_state(&pnode->trx_status, lock);
+		if (lock)
+			pnode->nd_modified |= NODE_LOCKED;
 	}
 	pbs_db_reset_obj(&obj);
 	pnode->nd_last_refresh_time = time(NULL);
@@ -241,7 +235,6 @@ db_commit:
 db_err:
 	free(pnode);
 	log_err(-1, __func__, "error on recovering node");
-	(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
 	return NULL;
 }
 
@@ -461,8 +454,6 @@ node_save_db(struct pbsnode *pnode)
 	pbs_db_reset_obj(&obj);
 	pnode->nd_last_refresh_time = time(NULL);
 	if (pnode->nd_modified & NODE_LOCKED) {
-		if (pbs_db_end_trx(conn, PBS_DB_COMMIT) != 0)
-			goto db_err;
 		pnode->nd_modified &= ~NODE_LOCKED;
 	}
 

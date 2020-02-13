@@ -1133,8 +1133,8 @@ find_job(char *jobid)
 	}
 
 	/* first check avl tree, if not found, load from DB */
-	if (!(pj = find_job_avl(buf))) {
-		if ((pj = job_recov_db(jobid, NULL, 0))) {
+	if ((pj = find_job_avl(buf)) == NULL) {
+		if ((pj = job_recov_db(jobid, NULL, 0)) != NULL) {
 			/* TODO_MULTI: A lot more logic will go in here about sharding and job migration and locking server_instances */
 			if (svr_enquejob(pj)) {
 				job_free(pj);

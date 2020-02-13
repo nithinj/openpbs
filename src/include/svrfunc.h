@@ -136,6 +136,8 @@ extern void spool_filename(job *pjob, char *namebuf, char *suffix);
 extern enum failover_state are_we_primary(void);
 extern void license_more_nodes(void);
 void connect_to_scheduler(pbs_sched *psched);
+void dealloc_hosts(job  *, char *);
+void alloc_hosts(void  *, char *, int);
 
 #ifdef	_PROVISION_H
 extern int find_prov_vnode_list(job *pjob, exec_vnode_listtype *prov_vnodes, char **aoe_name);
