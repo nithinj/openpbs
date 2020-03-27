@@ -92,7 +92,7 @@ extern time_t	 time_now;
 extern char	 statechars[];
 extern long svr_history_enable;
 extern int scheduler_jobs_stat;
-extern int get_all_db_jobs();
+extern int get_all_db_jobs(int);
 
 /* Private Functions  */
 
@@ -339,7 +339,7 @@ req_selectjobs(struct batch_request *preq)
 	/* for multi server project, fetch all the updated/newly added jobs from db and
 	 * also refreshes existing jobs from db if it has old data.
 	 */
-	rc = get_all_db_jobs();
+	rc = get_all_db_jobs(LOADJOB_FULL);
 	if (rc) {
 		req_reject(rc, bad, preq);
 		return;

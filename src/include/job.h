@@ -917,6 +917,9 @@ task_find	(job		*pjob,
 #define SAVEJOB_NEW       2
 #define SAVEJOB_FULLFORCE 3
 
+#define LOADJOB_FULL	0
+#define LOADJOB_COUNTS	1
+
 #define MAIL_NONE  (int)'n'
 #define MAIL_ABORT (int)'a'
 #define MAIL_BEGIN (int)'b'

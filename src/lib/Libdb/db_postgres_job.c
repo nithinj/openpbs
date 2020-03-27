@@ -233,6 +233,16 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 			"order by ji_savetm ");
 		if (pg_prepare_stmt(conn, STMT_FINDJOBS_FROM_TIME, conn->conn_sql, 1) != 0)
 			return -1;
+
+	snprintf(conn->conn_sql, MAX_SQL_LENGTH, "select "
+			"ji_jobid,"
+			"ji_state,"
+			"ji_queue,"
+			"to_char(ji_savetm, 'YYYY-MM-DD HH24:MI:SS.US') as ji_savetm, "
+			"attributes -> 'exec_host.' AS exec_host"
+			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US') ");
+		if (pg_prepare_stmt(conn, STMT_FINDJOBS_FROM_TIME, conn->conn_sql, 1) != 0)
+			return -1;
 	/*
 	 * Use the sql encode function to encode the $2 parameter. Encode using
 	 * 'escape' mode. Encode considers $2 as a bytea and returns a escaped
@@ -597,6 +607,10 @@ pg_db_find_job(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj,
 		SET_PARAM_STR(conn, pdjob->ji_queue, 0);
 		params=1;
 		strcpy(conn->conn_sql, STMT_FINDJOBS_BYQUE_ORDBY_QRANK);
+	} else if (opts != NULL && opts->timestamp && opts->flags == LOADJOB_COUNTS) {
+		SET_PARAM_STR(conn, opts->timestamp, 0);
+		params=1;
+		strcpy(conn->conn_sql, STMT_FINDJOBS_PARTIAL);
 	} else if (opts != NULL && opts->timestamp){
 		SET_PARAM_STR(conn, opts->timestamp, 0);
 		params=1;

@@ -322,7 +322,7 @@ void req_stat_job(struct batch_request *preq)
 	 */
 
 	/*---------for stat server-----------*/
-	db_rc = get_all_db_jobs();
+	db_rc = get_all_db_jobs(LOADJOB_FULL);
 	if (db_rc) {
 		req_reject(db_rc, bad, preq);
 		return;
@@ -429,7 +429,7 @@ void req_stat_job(struct batch_request *preq)
  */
 
 int
-get_all_db_jobs() 
+get_all_db_jobs(int load_type) 
 {
 	job	*pj = NULL;
 	pbs_db_job_info_t dbjob;
@@ -441,6 +441,7 @@ get_all_db_jobs()
 	int refreshed;
 	int count = 0;
 	static char jobs_from_time[DB_TIMESTAMP_LEN + 1] = {0};
+	static char jobs_ct_refr_time[DB_TIMESTAMP_LEN + 1] = {0};
 
 	if (pbs_db_begin_trx(conn, 0, 0) !=0) {
 		(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
@@ -448,8 +449,13 @@ get_all_db_jobs()
 	}
 
 	/* fill in options */
-	opts.flags = 0;
-	opts.timestamp = jobs_from_time;
+	if (load_type == LOADJOB_COUNTS) {
+		opts.flags = 2;
+		opts.timestamp = jobs_ct_refr_time;
+	} else {
+		opts.flags = 0;
+		opts.timestamp = jobs_from_time;
+	}
 
 	obj.pbs_db_obj_type = PBS_DB_JOB;
 	obj.pbs_db_un.pbs_db_job = &dbjob;
@@ -482,8 +488,12 @@ get_all_db_jobs()
 	sprintf(log_buffer, "Refreshed %d jobs", count);
 	log_err(-1, __func__, log_buffer);
 
-	if (pj)
-		strcpy(jobs_from_time, pj->ji_savetm);
+	if (pj) {
+		if (load_type == LOADJOB_COUNTS)
+			strcpy(jobs_ct_refr_time, pj->ji_savetm);
+		else
+			strcpy(jobs_from_time, pj->ji_savetm);
+	}
 
 	return 0;
 }
@@ -693,8 +703,6 @@ req_stat_que(struct batch_request *preq)
 		rc = status_que(pque, preq, &preply->brp_un.brp_status);
 
 	} else {	/* get status of queues */
-		if (sched_trx_chk == SCHED_TRX_NOCHK)
-			get_all_db_jobs();
 		pque = (pbs_queue *)GET_NEXT(svr_queues);
 		while (pque) {
 			if((time(0) - pque->qu_last_refresh_time) >= OBJ_REFRESH_TIME_PERIOD) {
@@ -854,8 +862,6 @@ req_stat_node(struct batch_request *preq)
 		rc = status_node(pnode, preq, &preply->brp_un.brp_status);
 
 	} else {			/* get status of all nodes */
-		if (sched_trx_chk == SCHED_TRX_NOCHK)
-			get_all_db_jobs();
 		get_all_db_nodes(NULL);
 		for (i = 0; i < svr_totnodes; i++) {
 			pnode = pbsndlist[i];
@@ -996,7 +1002,6 @@ req_stat_svr(struct batch_request *preq)
 
 
 	svr_recov_db(0);
-	//get_all_db_jobs();
 	/* update count and state counts from sv_numjobs and sv_jobstates */
 
 	server.sv_attr[(int)SRV_ATR_TotalJobs].at_val.at_long = server.sv_numjobs;

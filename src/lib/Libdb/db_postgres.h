@@ -97,6 +97,7 @@ typedef unsigned __int64 uint64_t;
 #define STMT_FINDJOBS_ORDBY_QRANK   "findjobs_ordby_qrank"
 #define STMT_FINDJOBS_BYQUE_ORDBY_QRANK "findjobs_byque_ordby_qrank"
 #define STMT_FINDJOBS_FROM_TIME "findjobs_from_time"
+#define STMT_FINDJOBS_PARTIAL "findjobs_from_time_partial"
 #define STMT_DELETE_JOB "delete_job"
 #define STMT_REMOVE_JOBATTRS "remove_jobattrs"
 
@@ -328,6 +329,7 @@ typedef struct postgres_db_fn pg_db_fn_t;
 		(itm) = PQgetvalue((res), (row), (fnum));
 
 #define FIND_JOBS_BY_QUE 1
+#define LOADJOB_COUNTS 2
 
 /* common functions */
 int pg_db_prepare_job_sqls(pbs_db_conn_t *conn);
