@@ -4369,7 +4369,7 @@ is_request(int stream, int version)
 			add_mom_mcast(pmom, &mtfd_replyhello);
 			static int reply_send_tm = 0;
 			if (reply_send_tm <= time_now) {
-				reply_send_tm = time_now + 2;
+				reply_send_tm = time_now + 0;
 				struct work_task *ptask = set_task(WORK_Timed, reply_send_tm, mcast_moms, NULL);
 				ptask->wt_aux = IS_REPLYHELLO;
 			}

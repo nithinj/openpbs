@@ -3586,10 +3586,7 @@ struct batch_request *preq;
 	}
 	have_blue_gene_nodes = rc;
 
-
-
 	reply_ack(preq);		/*request completely successful*/
-	setup_notification();
 }
 
 /**
