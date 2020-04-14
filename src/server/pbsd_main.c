@@ -150,6 +150,7 @@ extern int  be_secondary(time_t sec);
 extern void set_srv_prov_attributes();
 extern void log_set_dberr(char *err_msg, char *db_err);
 extern int chk_save_file(char *filename);
+extern void get_all_db_jobs(int);
 #ifdef NAS /* localmod 005 */
 extern int chk_and_update_db_svrhost();
 #endif /* localmod 005 */
@@ -2019,6 +2020,9 @@ try_db_again:
 				}
 			}
 		}
+
+		/* populate counts before processing requests */
+		get_all_db_jobs(LOADJOB_COUNTS);
 
 		/* first process any task whose time delay has expired */
 		waittime = next_task();

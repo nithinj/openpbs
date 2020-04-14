@@ -443,30 +443,27 @@ get_all_db_jobs(int load_type)
 	static char jobs_from_time[DB_TIMESTAMP_LEN + 1] = {0};
 	static char jobs_ct_refr_time[DB_TIMESTAMP_LEN + 1] = {0};
 
-	if (pbs_db_begin_trx(conn, 0, 0) !=0) {
-		(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
-		return (1);
-	}
-
 	/* fill in options */
 	if (load_type == LOADJOB_COUNTS) {
-		opts.flags = 2;
-		opts.timestamp = jobs_ct_refr_time;
+		if (strncmp(jobs_ct_refr_time, jobs_from_time, DB_TIMESTAMP_LEN) < 0)
+			opts.timestamp = jobs_from_time;
+		else
+			opts.timestamp = jobs_ct_refr_time;
 	} else {
-		opts.flags = 0;
 		opts.timestamp = jobs_from_time;
 	}
 
+	opts.flags = load_type;
 	obj.pbs_db_obj_type = PBS_DB_JOB;
 	obj.pbs_db_un.pbs_db_job = &dbjob;
 	dbjob.attr_list.attributes = NULL;
+	dbjob.load_type = load_type;
 
 	state = pbs_db_cursor_init(conn, &obj, &opts);
 	if (state == NULL) {
 		sprintf(log_buffer, "%s", (char *) conn->conn_db_err);
 		log_err(-1, __func__, log_buffer);
 		pbs_db_cursor_close(conn, state);
-		(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
 		return (1);
 	}
 	
@@ -482,13 +479,11 @@ get_all_db_jobs(int load_type)
 	}
 
 	pbs_db_cursor_close(conn, state);
-	if (pbs_db_end_trx(conn, PBS_DB_COMMIT) != 0)
-		return (1);
 
 	sprintf(log_buffer, "Refreshed %d jobs", count);
 	log_err(-1, __func__, log_buffer);
 
-	if (pj) {
+	if (pj && pj->ji_savetm) {
 		if (load_type == LOADJOB_COUNTS)
 			strcpy(jobs_ct_refr_time, pj->ji_savetm);
 		else
@@ -862,6 +857,7 @@ req_stat_node(struct batch_request *preq)
 		rc = status_node(pnode, preq, &preply->brp_un.brp_status);
 
 	} else {			/* get status of all nodes */
+		//get_all_db_jobs(LOADJOB_COUNTS);
 		get_all_db_nodes(NULL);
 		for (i = 0; i < svr_totnodes; i++) {
 			pnode = pbsndlist[i];

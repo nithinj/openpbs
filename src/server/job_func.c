@@ -930,10 +930,10 @@ job_purge(job *pjob)
 	}
 
 	/* delete entries from node job table */
-	if (delete_nodejob_entry(pjob) != 0) {
+	/*if (delete_nodejob_entry(pjob) != 0) {
 		log_joberr(-1, __func__, msg_err_purgenodejob_db,
 			pjob->ji_qs.ji_jobid);
-	}
+	}*/
 
 	if (pjob->ji_qs.ji_svrflags & JOB_SVFLG_HasNodes) {
 		is_called_by_job_purge = 1;
@@ -1716,7 +1716,7 @@ resv_purge(resc_resv *presv)
 	pbs_db_obj_info_t	obj;
 	pbs_db_query_options_t opts;
 	pbs_db_resv_info_t	dbresv;
-	pbs_db_nodejob_info_t db_nj;
+	//pbs_db_nodejob_info_t db_nj;
 
 	if (presv == NULL)
 		return;
@@ -1799,14 +1799,14 @@ resv_purge(resc_resv *presv)
 	}
 
 	/* delete entries from node job table */
-	obj.pbs_db_obj_type = PBS_DB_NODEJOB;
+	/*obj.pbs_db_obj_type = PBS_DB_NODEJOB;
 	obj.pbs_db_un.pbs_db_nodejob = &db_nj;
 	strcpy(db_nj.job_id, presv->ri_qs.ri_resvID);
 	if (pbs_db_delete_obj(svr_db_conn, &obj, &opts) == -1) {
 		log_joberr(-1, __func__, msg_err_purgenodejob_db,
 			presv->ri_qs.ri_resvID);
 		(void) pbs_db_end_trx(svr_db_conn, PBS_DB_ROLLBACK);
-	}
+	}*/
 	(void) pbs_db_end_trx(svr_db_conn, PBS_DB_COMMIT);
 
 	/*Free resc_resv struct, any hanging substructs, any attached

@@ -6235,6 +6235,59 @@ which_parent_mom(pbsnode *pnode, mominfo_t *pcur_mom)
 }
 
 void
+job_sharing_type(attribute *patresc, int *share_job, int *alloc_how)
+{
+	resource_def *prsdef;
+	resource *pplace;
+
+	prsdef = find_resc_def(svr_resc_def, "place", svr_resc_size);
+	pplace = find_resc_entry(patresc, prsdef);
+	if (pplace && pplace->rs_value.at_val.at_str) {
+		if ((place_sharing_type(pplace->rs_value.at_val.at_str,
+			VNS_FORCE_EXCLHOST) != VNS_UNSET) ||
+			(place_sharing_type(pplace->rs_value.at_val.at_str,
+			VNS_FORCE_EXCL) != VNS_UNSET)) {
+			*share_job = (int)VNS_FORCE_EXCL;
+			*alloc_how = INUSE_JOBEXCL;
+		} else if (place_sharing_type(pplace->rs_value.at_val.at_str,
+			VNS_IGNORE_EXCL) == VNS_IGNORE_EXCL)
+			*share_job = (int)VNS_IGNORE_EXCL;
+		else
+			*share_job = (int)VNS_DFLT_SHARED;
+	}
+}
+
+void
+derive_vnode_state(pbs_node *pnode, int share_job)
+{
+	int share_node = pnode->nd_attr[(int)ND_ATR_Sharing].at_val.at_long;
+
+	if (share_node == (int)VNS_FORCE_EXCL || share_node == (int)VNS_FORCE_EXCLHOST) {
+		set_vnode_state2(pnode, INUSE_JOBEXCL, Nd_State_Or, 0);
+	} else if (share_node == (int)VNS_IGNORE_EXCL) {
+		if (pnode->nd_nsnfree <= 0)
+			set_vnode_state2(pnode, INUSE_JOB, Nd_State_Or, 0);
+		else
+			set_vnode_state2(pnode, ~(INUSE_JOB | INUSE_JOBEXCL), Nd_State_And, 0);
+	} else if (share_node == (int)VNS_DFLT_EXCL || share_node == (int)VNS_DFLT_EXCLHOST) {
+		if (share_job == (int)VNS_IGNORE_EXCL) {
+			if (pnode->nd_nsnfree <= 0)
+				set_vnode_state2(pnode, INUSE_JOB, Nd_State_Or, 0);
+			else
+				set_vnode_state2(pnode, ~(INUSE_JOB | INUSE_JOBEXCL), Nd_State_And, 0);
+		} else {
+			set_vnode_state2(pnode, INUSE_JOBEXCL, Nd_State_Or, 0);
+		}
+	} else if (share_job == VNS_FORCE_EXCL) {
+		set_vnode_state2(pnode, INUSE_JOBEXCL, Nd_State_Or, 0);
+	} else if (pnode->nd_nsnfree <= 0) {
+		set_vnode_state2(pnode, INUSE_JOB, Nd_State_Or, 0);
+	} else {
+		set_vnode_state2(pnode, ~(INUSE_JOB | INUSE_JOBEXCL), Nd_State_And, 0);
+	}
+}
+
+void
 dealloc_hosts(job  *pjob, char *execvnod_in) {
 	char	     *execvncopy;
 	char         *chunk;
@@ -6245,6 +6298,10 @@ dealloc_hosts(job  *pjob, char *execvnod_in) {
 	struct key_value_pair *pkvp;
 	pbs_node     *pnode;
 	char 	     *execvnod = NULL;
+	int 		share_job;
+	int		alloc_how = INUSE_JOB;
+
+	job_sharing_type(&pjob->ji_wattr[(int)JOB_ATR_resource], &share_job, &alloc_how);
 
 	if (strchr(execvnod_in, (int)':') == NULL) {
 		/* need to take node only list and build a pseudo */
@@ -6261,6 +6318,7 @@ dealloc_hosts(job  *pjob, char *execvnod_in) {
 		if (parse_node_resc(chunk, &vname, &nelem, &pkvp) == 0) {
 			pnode = find_nodebyname(vname, NO_LOCK);
 			deallocate_job_from_node(pjob, pnode);
+			derive_vnode_state(pnode, share_job);
 			chunk = parse_plus_spec_r(last, &last, &hasprn);
 		}
 	}
@@ -6324,59 +6382,6 @@ alloc_subnodes(pbs_node *pnode, job  *pjob, int hw_ncpus, int alloc_how)
 }
 
 void
-job_sharing_type(attribute *patresc, int *share_job, int *alloc_how)
-{
-	resource_def *prsdef;
-	resource *pplace;
-
-	prsdef = find_resc_def(svr_resc_def, "place", svr_resc_size);
-	pplace = find_resc_entry(patresc, prsdef);
-	if (pplace && pplace->rs_value.at_val.at_str) {
-		if ((place_sharing_type(pplace->rs_value.at_val.at_str,
-			VNS_FORCE_EXCLHOST) != VNS_UNSET) ||
-			(place_sharing_type(pplace->rs_value.at_val.at_str,
-			VNS_FORCE_EXCL) != VNS_UNSET)) {
-			*share_job = (int)VNS_FORCE_EXCL;
-			*alloc_how = INUSE_JOBEXCL;
-		} else if (place_sharing_type(pplace->rs_value.at_val.at_str,
-			VNS_IGNORE_EXCL) == VNS_IGNORE_EXCL)
-			*share_job = (int)VNS_IGNORE_EXCL;
-		else
-			*share_job = (int)VNS_DFLT_SHARED;
-	}
-}
-
-void
-derive_vnode_state(pbs_node *pnode, int share_job)
-{
-	int share_node = pnode->nd_attr[(int)ND_ATR_Sharing].at_val.at_long;
-
-	if (share_node == (int)VNS_FORCE_EXCL || share_node == (int)VNS_FORCE_EXCLHOST) {
-		set_vnode_state2(pnode, INUSE_JOBEXCL, Nd_State_Or, 0);
-	} else if (share_node == (int)VNS_IGNORE_EXCL) {
-		if (pnode->nd_nsnfree <= 0)
-			set_vnode_state2(pnode, INUSE_JOB, Nd_State_Or, 0);
-		else
-			set_vnode_state2(pnode, ~(INUSE_JOB | INUSE_JOBEXCL), Nd_State_And, 0);
-	} else if (share_node == (int)VNS_DFLT_EXCL || share_node == (int)VNS_DFLT_EXCLHOST) {
-		if (share_job == (int)VNS_IGNORE_EXCL) {
-			if (pnode->nd_nsnfree <= 0)
-				set_vnode_state2(pnode, INUSE_JOB, Nd_State_Or, 0);
-			else
-				set_vnode_state2(pnode, ~(INUSE_JOB | INUSE_JOBEXCL), Nd_State_And, 0);
-		} else {
-			set_vnode_state2(pnode, INUSE_JOBEXCL, Nd_State_Or, 0);
-		}
-	} else if (share_job == VNS_FORCE_EXCL) {
-		set_vnode_state2(pnode, INUSE_JOBEXCL, Nd_State_Or, 0);
-	} else if (pnode->nd_nsnfree <= 0) {
-		set_vnode_state2(pnode, INUSE_JOB, Nd_State_Or, 0);
-	} else {
-		set_vnode_state2(pnode, ~(INUSE_JOB | INUSE_JOBEXCL), Nd_State_And, 0);
-	}
-}
-
-void
 alloc_hosts(void *pobj, char *execvnod_in, int objtype) {
 	int		i;
 	char	     *execvncopy;
@@ -6407,7 +6412,6 @@ alloc_hosts(void *pobj, char *execvnod_in, int objtype) {
 	}
 
 	execvncopy = strdup(execvnod);
-
 	chunk = parse_plus_spec_r(execvncopy, &last, &hasprn);
 
 	while (chunk) {

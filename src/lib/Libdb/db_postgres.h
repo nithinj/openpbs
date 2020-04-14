@@ -328,9 +328,6 @@ typedef struct postgres_db_fn pg_db_fn_t;
 #define GET_PARAM_BIN(res, row, itm, fnum) \
 		(itm) = PQgetvalue((res), (row), (fnum));
 
-#define FIND_JOBS_BY_QUE 1
-#define LOADJOB_COUNTS 2
-
 /* common functions */
 int pg_db_prepare_job_sqls(pbs_db_conn_t *conn);
 int pg_db_prepare_resv_sqls(pbs_db_conn_t *conn);

@@ -456,7 +456,7 @@ class PBSLogUtils(object):
     @staticmethod
     def _duration(val=None):
         if val is not None:
-            return str(datetime.timedelta(seconds=int(val)))
+            return str(datetime.timedelta(seconds=float(val)))
 
     @staticmethod
     def get_day(tm=None):

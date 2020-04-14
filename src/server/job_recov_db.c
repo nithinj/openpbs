@@ -189,6 +189,70 @@ svr_to_db_job(job *pjob, pbs_db_job_info_t *dbjob, int updatetype)
 	return 0;
 }
 
+static void
+populate_counts(job *pjob, int old_state, int old_flags)
+{
+	char 		 *pnodespec;
+
+	//sprintf(log_buffer, "job id: %s, old_state: %d, new state: %d", pjob->ji_qs.ji_jobid, old_state, pjob->ji_qs.ji_state);
+	//log_err(-1, __func__, log_buffer);
+	pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
+	if (old_state != pjob->ji_qs.ji_state) {
+		if (old_state == JOB_STATE_RUNNING) {
+			if (old_flags & JOB_SVFLG_RescAssn)
+				pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
+			set_resc_assigned((void *)pjob, 0, DECR);
+			dealloc_hosts(pjob, pnodespec);
+		} else if (pjob->ji_qs.ji_state == JOB_STATE_RUNNING) {
+			if (!(old_flags & JOB_SVFLG_RescAssn))
+				pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
+			alloc_hosts(pjob, pnodespec, JOB_OBJECT);
+			set_resc_assigned((void *)pjob, 0, INCR);
+		}
+	}
+}
+
+/**
+ * @brief
+ *		Load data from database job object to a server job object
+ *
+ * @see
+ * 		job_recov_db
+ *
+ * @param[out]	pjob - Address of the job in the server
+ * @param[in]	dbjob - Address of the database job object
+ *
+ * @retval   !=0  Failure
+ * @retval   0    Success
+ */
+static int
+db_to_svr_job_partial(job *pjob,  pbs_db_job_info_t *dbjob)
+{
+	int old_state = pjob->ji_qs.ji_state;
+	int old_flags = pjob->ji_qs.ji_svrflags;
+	struct attribute_def *padef = job_attr_def;
+	struct attribute *pattr = pjob->ji_wattr;
+
+	//log_err(-1, __func__, "partial load");
+
+	/* Variables assigned constant values are not stored in the DB */
+	pjob->ji_qs.ji_jsversion = JSVERSION;
+	strcpy(pjob->ji_qs.ji_jobid, dbjob->ji_jobid);
+	pjob->ji_qs.ji_state = dbjob->ji_state;
+	strcpy(pjob->ji_qs.ji_queue, dbjob->ji_queue);
+	strcpy(pjob->ji_savetm, dbjob->ji_savetm);
+
+	if (padef[JOB_ATR_exec_vnode].at_decode)
+		padef[JOB_ATR_exec_vnode].at_decode(&pattr[JOB_ATR_exec_vnode], padef->at_name, NULL, dbjob->ji_execvnode);
+
+	if (padef[JOB_ATR_at_server].at_decode)
+		padef[JOB_ATR_at_server].at_decode(&pattr[JOB_ATR_at_server], padef->at_name, NULL, dbjob->ji_server);
+
+	populate_counts(pjob, old_state, old_flags);
+
+	return 0;
+}
+
 /**
  * @brief
  *		Load data from database job object to a server job object
@@ -205,7 +269,6 @@ svr_to_db_job(job *pjob, pbs_db_job_info_t *dbjob, int updatetype)
 static int
 db_to_svr_job(job *pjob,  pbs_db_job_info_t *dbjob)
 {
-	char 		 *pnodespec;
 	int old_state = pjob->ji_qs.ji_state;
 	int old_flags = pjob->ji_qs.ji_svrflags;
 
@@ -257,20 +320,7 @@ db_to_svr_job(job *pjob,  pbs_db_job_info_t *dbjob)
 
 	strcpy(pjob->ji_savetm, dbjob->ji_savetm);
 
-	pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
-	if (old_state != pjob->ji_qs.ji_state) {
-		if (old_state == JOB_STATE_RUNNING) {
-			if (old_flags & JOB_SVFLG_RescAssn)
-				pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
-			set_resc_assigned((void *)pjob, 0, DECR);
-			dealloc_hosts(pjob, pnodespec);
-		} else if (pjob->ji_qs.ji_state == JOB_STATE_RUNNING) {
-			if (!(old_flags & JOB_SVFLG_RescAssn))
-				pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
-			alloc_hosts(pjob, pnodespec, JOB_OBJECT);
-			set_resc_assigned((void *)pjob, 0, INCR);
-		}
-	}
+	populate_counts(pjob, old_state, old_flags);
 
 	return 0;
 }
@@ -515,7 +565,10 @@ job_recov_db_spl(pbs_db_job_info_t *dbjob)
 		return ((job *)0);
 	}
 
-	if (db_to_svr_job(pj, dbjob) != 0)
+	if (dbjob->load_type == LOADJOB_COUNTS) {
+		if (db_to_svr_job_partial(pj, dbjob) != 0)
+			goto db_err;
+	} else if (db_to_svr_job(pj, dbjob) != 0)
 		goto db_err;
 
 	return (pj);
@@ -556,6 +609,12 @@ refresh_job(pbs_db_job_info_t *dbjob, int *refreshed)
 
 		*refreshed = 1;
 		
+	} else if (dbjob->load_type == LOADJOB_COUNTS) {
+		if (db_to_svr_job_partial(pj, dbjob) != 0)
+			goto err;
+
+		*refreshed = 1;
+
 	} else if (strcmp(dbjob->ji_savetm, pj->ji_savetm) != 0) { /* if the job had really changed in the DB */
 		if (db_to_svr_job(pj, dbjob) != 0)
 			goto err;

@@ -239,9 +239,11 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 			"ji_state,"
 			"ji_queue,"
 			"to_char(ji_savetm, 'YYYY-MM-DD HH24:MI:SS.US') as ji_savetm, "
-			"attributes -> 'exec_host.' AS exec_host"
-			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US') ");
-		if (pg_prepare_stmt(conn, STMT_FINDJOBS_FROM_TIME, conn->conn_sql, 1) != 0)
+			"attributes -> 'exec_vnode.' AS ji_exec_vnode, "
+			"attributes -> 'server.' AS ji_server "
+			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US') "
+			"order by ji_savetm ");
+		if (pg_prepare_stmt(conn, STMT_FINDJOBS_PARTIAL, conn->conn_sql, 1) != 0)
 			return -1;
 	/*
 	 * Use the sql encode function to encode the $2 parameter. Encode using
@@ -358,6 +360,71 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 	snprintf(conn->conn_sql, MAX_SQL_LENGTH, "select ji_state, count(*) as jobcount from pbs.job where ji_queue = $1 group by ji_state");
 	if (pg_prepare_stmt(conn, STMT_GET_STATECOUNTS_BYQUE, conn->conn_sql, 0) != 0)
 		return -1;
+
+	return 0;
+}
+
+void
+rmv_attr_flags(char *attr_value)
+{
+	char *p, *q;
+	
+	q = attr_value;
+	if ((p = strchr(attr_value, '.'))) {
+		while(*p)
+			*q++ = *++p;
+		*q ='\0';
+	}
+}
+
+/**
+ * @brief
+ *	Load job data from the row into the job object
+ *
+ * @param[in]	res - Resultset from an earlier query
+ * @param[out]  pj  - Job object to load data into
+ * @param[in]	row - The current row to load within the resultset
+ *
+ * @return error code
+ * @retval 0 Success
+ * @retval -1 Error
+ * @retval	>1 - Number of attributes
+ * @retval 	-2 -  Success but data same as old, so not loading data (but locking if lock requested)
+ */
+static int
+load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
+{
+	char db_savetm[DB_TIMESTAMP_LEN + 1];
+	static int ji_jobid_fnum, ji_state_fnum, ji_execvnode_fnum, ji_queue_fnum, ji_savetm_fnum, ji_server_fnum;
+
+	static int fnums_inited = 0;
+
+	if (fnums_inited == 0) {
+		/* cache the column numbers of various job table fields */
+		ji_jobid_fnum = PQfnumber(res, "ji_jobid");
+		ji_state_fnum = PQfnumber(res, "ji_state");
+		ji_queue_fnum = PQfnumber(res, "ji_queue");
+		ji_savetm_fnum = PQfnumber(res, "ji_savetm");
+		ji_execvnode_fnum = PQfnumber(res, "ji_exec_vnode");
+		ji_server_fnum = PQfnumber(res, "ji_server");
+		fnums_inited = 1;
+	}
+
+	GET_PARAM_STR(res, row, db_savetm, ji_savetm_fnum);
+	if (strcmp(pj->ji_savetm, db_savetm) == 0) {
+		/* data same as read last time, so no need to read any further, return success from here */
+		/* however since we loaded data from the database, the row is locked if a lock was requested */
+		return -2;
+	}
+	strcpy(pj->ji_savetm, db_savetm);  /* update the save timestamp */
+
+	GET_PARAM_STR(res, row, pj->ji_jobid, ji_jobid_fnum);
+	GET_PARAM_INTEGER(res, row, pj->ji_state, ji_state_fnum);
+	GET_PARAM_STR(res, row, pj->ji_queue, ji_queue_fnum);
+	GET_PARAM_STR(res, row, pj->ji_execvnode, ji_execvnode_fnum);
+	rmv_attr_flags(pj->ji_execvnode);
+	GET_PARAM_STR(res, row, pj->ji_server, ji_server_fnum);
+	rmv_attr_flags(pj->ji_server);
 
 	return 0;
 }
@@ -595,7 +662,6 @@ pg_db_find_job(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj,
 {
 	PGresult *res;
 	pg_query_state_t *state = (pg_query_state_t *) st;
-	pbs_db_job_info_t *pdjob = obj->pbs_db_un.pbs_db_job;
 
 	int rc;
 	int params;
@@ -604,6 +670,7 @@ pg_db_find_job(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj,
 		return -1;
 
 	if (opts != NULL && opts->flags == FIND_JOBS_BY_QUE) {
+		pbs_db_job_info_t *pdjob = obj->pbs_db_un.pbs_db_job;
 		SET_PARAM_STR(conn, pdjob->ji_queue, 0);
 		params=1;
 		strcpy(conn->conn_sql, STMT_FINDJOBS_BYQUE_ORDBY_QRANK);
@@ -611,7 +678,7 @@ pg_db_find_job(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj,
 		SET_PARAM_STR(conn, opts->timestamp, 0);
 		params=1;
 		strcpy(conn->conn_sql, STMT_FINDJOBS_PARTIAL);
-	} else if (opts != NULL && opts->timestamp){
+	} else if (opts != NULL && opts->timestamp) {
 		SET_PARAM_STR(conn, opts->timestamp, 0);
 		params=1;
 		strcpy(conn->conn_sql, STMT_FINDJOBS_FROM_TIME);
@@ -647,6 +714,10 @@ int
 pg_db_next_job(pbs_db_conn_t *conn, void *st, pbs_db_obj_info_t *obj)
 {
 	pg_query_state_t *state = (pg_query_state_t *) st;
+	pbs_db_job_info_t *pj = obj->pbs_db_un.pbs_db_job;
+
+	if (pj->load_type == LOADJOB_COUNTS)
+		return load_job_partial(state->res, obj->pbs_db_un.pbs_db_job, state->row);
 
 	return load_job(state->res, obj->pbs_db_un.pbs_db_job, state->row);
 }

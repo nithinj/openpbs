@@ -165,13 +165,13 @@ struct pbs_db_attr_list {
 
 typedef struct pbs_db_attr_list pbs_db_attr_list_t;
 
-
 /**
  * @brief
  *  Structure used to map database job structure to C
  *
  */
 struct pbs_db_job_info {
+	INTEGER  load_type;
 	char     ji_jobid[PBS_MAXSVRJOBID + 1]; /* job identifier */
 	INTEGER  ji_state; /* INTEGERernal copy of state */
 	INTEGER  ji_substate; /* job sub-state */
@@ -197,6 +197,8 @@ struct pbs_db_job_info {
 	INTEGER  ji_qrank;
 	char     ji_savetm[DB_TIMESTAMP_LEN + 1];
 	char     ji_creattm[DB_TIMESTAMP_LEN + 1];
+	char     ji_execvnode[PBS_MAXHOSTNAME + 1]; /* name of current exec host */
+	char     ji_server[PBS_MAXHOSTNAME + 1]; /* name of current server */
 	pbs_db_attr_list_t attr_list; /* list of attributes */
 };
 typedef struct pbs_db_job_info pbs_db_job_info_t;
@@ -379,6 +381,11 @@ typedef struct pbs_db_query_options pbs_db_query_options_t;
 #define PBS_NODEJOB_JOB		0
 #define PBS_NODEJOB_RESV	1
 #define PBS_NODEJOB_MAINTJOB	2
+
+/* Job load types */
+#define LOADJOB_FULL	0
+#define LOADJOB_COUNTS	1
+#define FIND_JOBS_BY_QUE 2
 
 /**
  * @brief
