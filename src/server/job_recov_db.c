@@ -194,8 +194,6 @@ populate_counts(job *pjob, int old_state, int old_flags)
 {
 	char 		 *pnodespec;
 
-	//sprintf(log_buffer, "job id: %s, old_state: %d, new state: %d", pjob->ji_qs.ji_jobid, old_state, pjob->ji_qs.ji_state);
-	//log_err(-1, __func__, log_buffer);
 	pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
 	if (old_state != pjob->ji_qs.ji_state) {
 		if (old_state == JOB_STATE_RUNNING) {
@@ -208,6 +206,14 @@ populate_counts(job *pjob, int old_state, int old_flags)
 				pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
 			alloc_hosts(pjob, pnodespec, JOB_OBJECT);
 			set_resc_assigned((void *)pjob, 0, INCR);
+		}
+
+		if (old_state == JOB_STATE_QUEUED) {
+			account_entity_limit_usages(pjob, NULL, NULL, DECR, ETLIM_ACC_ALL);
+			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR, ETLIM_ACC_ALL);
+		} else if (pjob->ji_qs.ji_state == JOB_STATE_QUEUED) {
+			account_entity_limit_usages(pjob, NULL, NULL, INCR, ETLIM_ACC_ALL);
+			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, INCR, ETLIM_ACC_ALL);
 		}
 	}
 }
@@ -240,13 +246,19 @@ db_to_svr_job_partial(job *pjob,  pbs_db_job_info_t *dbjob)
 	strcpy(pjob->ji_qs.ji_jobid, dbjob->ji_jobid);
 	pjob->ji_qs.ji_state = dbjob->ji_state;
 	strcpy(pjob->ji_qs.ji_queue, dbjob->ji_queue);
-	strcpy(pjob->ji_savetm, dbjob->ji_savetm);
 
 	if (padef[JOB_ATR_exec_vnode].at_decode)
 		padef[JOB_ATR_exec_vnode].at_decode(&pattr[JOB_ATR_exec_vnode], padef->at_name, NULL, dbjob->ji_execvnode);
 
 	if (padef[JOB_ATR_at_server].at_decode)
 		padef[JOB_ATR_at_server].at_decode(&pattr[JOB_ATR_at_server], padef->at_name, NULL, dbjob->ji_server);
+
+	if (padef[JOB_ATR_euser].at_decode)
+		padef[JOB_ATR_euser].at_decode(&pattr[JOB_ATR_euser], padef->at_name, NULL, dbjob->ji_user);
+	if (padef[JOB_ATR_egroup].at_decode)
+		padef[JOB_ATR_egroup].at_decode(&pattr[JOB_ATR_egroup], padef->at_name, NULL, dbjob->ji_user);
+	if (padef[JOB_ATR_project].at_decode)
+		padef[JOB_ATR_project].at_decode(&pattr[JOB_ATR_project], padef->at_name, NULL, dbjob->ji_user);
 
 	populate_counts(pjob, old_state, old_flags);
 
@@ -609,15 +621,14 @@ refresh_job(pbs_db_job_info_t *dbjob, int *refreshed)
 
 		*refreshed = 1;
 		
-	} else if (dbjob->load_type == LOADJOB_COUNTS) {
-		if (db_to_svr_job_partial(pj, dbjob) != 0)
-			goto err;
-
-		*refreshed = 1;
-
 	} else if (strcmp(dbjob->ji_savetm, pj->ji_savetm) != 0) { /* if the job had really changed in the DB */
-		if (db_to_svr_job(pj, dbjob) != 0)
-			goto err;
+		if (dbjob->load_type == LOADJOB_COUNTS) {
+			if (db_to_svr_job_partial(pj, dbjob) != 0)
+				goto err;
+		} else {
+			if (db_to_svr_job(pj, dbjob) != 0)
+				goto err;
+		}
 
 		*refreshed = 1;
 	}

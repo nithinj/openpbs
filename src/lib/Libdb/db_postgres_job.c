@@ -240,9 +240,11 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 			"ji_queue,"
 			"to_char(ji_savetm, 'YYYY-MM-DD HH24:MI:SS.US') as ji_savetm, "
 			"attributes -> 'exec_vnode.' AS ji_exec_vnode, "
-			"attributes -> 'server.' AS ji_server "
-			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US') "
-			"order by ji_savetm ");
+			"attributes -> 'server.' AS ji_server, "
+			"attributes -> 'euser.' AS ji_user, "
+			"attributes -> 'egroup.' AS ji_group, "
+			"attributes -> 'project.' AS ji_project "
+			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US')");
 		if (pg_prepare_stmt(conn, STMT_FINDJOBS_PARTIAL, conn->conn_sql, 1) != 0)
 			return -1;
 	/*
@@ -395,7 +397,7 @@ static int
 load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 {
 	char db_savetm[DB_TIMESTAMP_LEN + 1];
-	static int ji_jobid_fnum, ji_state_fnum, ji_execvnode_fnum, ji_queue_fnum, ji_savetm_fnum, ji_server_fnum;
+	static int ji_jobid_fnum, ji_state_fnum, ji_execvnode_fnum, ji_queue_fnum, ji_savetm_fnum, ji_server_fnum, ji_user_fnum, ji_group_fnum, ji_project_fnum;
 
 	static int fnums_inited = 0;
 
@@ -407,6 +409,11 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 		ji_savetm_fnum = PQfnumber(res, "ji_savetm");
 		ji_execvnode_fnum = PQfnumber(res, "ji_exec_vnode");
 		ji_server_fnum = PQfnumber(res, "ji_server");
+
+		ji_user_fnum = PQfnumber(res, "ji_user");
+		ji_group_fnum = PQfnumber(res, "ji_group");
+		ji_project_fnum = PQfnumber(res, "ji_project");
+
 		fnums_inited = 1;
 	}
 
@@ -425,6 +432,13 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 	rmv_attr_flags(pj->ji_execvnode);
 	GET_PARAM_STR(res, row, pj->ji_server, ji_server_fnum);
 	rmv_attr_flags(pj->ji_server);
+
+	GET_PARAM_STR(res, row, pj->ji_user, ji_user_fnum);
+	rmv_attr_flags(pj->ji_user);
+	GET_PARAM_STR(res, row, pj->ji_group, ji_group_fnum);
+	rmv_attr_flags(pj->ji_group);
+	GET_PARAM_STR(res, row, pj->ji_project, ji_project_fnum);
+	rmv_attr_flags(pj->ji_project);
 
 	return 0;
 }

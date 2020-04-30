@@ -2357,7 +2357,7 @@ next_task()
 			psched = new_sched;
 			set_scheduler_flag(SCH_SCHEDULE_TIME, psched);
 		}
-		else if (delay < tilwhen)
+		else if (delay < tilwhen && delay > 0)
 			tilwhen = delay;
 	}
 

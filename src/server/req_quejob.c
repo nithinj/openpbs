@@ -1854,6 +1854,24 @@ req_commit_now(struct batch_request *preq, job *pj)
 	rc = svr_recov_db(0); /* why lock here? */
 	pque = find_queuebyname(pj->ji_qs.ji_queue, 0); /* why lock here? */
 
+	/*
+	 * See if the job is qualified to go into the requested queue.
+	 * Note, if an execution queue, then ji_qs.ji_un.ji_exect is set up
+	 *
+	 * svr_chkque is called way down here because it needs to have the
+	 * job structure and attributes already set up.
+	 */
+	rc = svr_chkque(pj, pque, preq->rq_host, MOVE_TYPE_Move);
+	if (rc) {
+		if (pj->ji_clterrmsg)
+			reply_text(preq, rc, pj->ji_clterrmsg);
+		else
+			req_reject(rc, 0, preq);
+		job_purge(pj);
+		(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
+		return;
+	}
+
 	/* Set Server level entity usage */
 	if ((rc = account_entity_limit_usages(pj, NULL, NULL, INCR, ETLIM_ACC_ALL)) != 0) {
 		job_purge(pj);
@@ -1882,31 +1900,13 @@ req_commit_now(struct batch_request *preq, job *pj)
 	pj->ji_wattr[(int)JOB_ATR_qrank].at_flags |=
 		ATR_VFLAG_SET|ATR_VFLAG_MODCACHE | ATR_VFLAG_MODIFY;
 
-	/*
-	 * See if the job is qualified to go into the requested queue.
-	 * Note, if an execution queue, then ji_qs.ji_un.ji_exect is set up
-	 *
-	 * svr_chkque is called way down here because it needs to have the
-	 * job structure and attributes already set up.
-	 */
-	rc = svr_chkque(pj, pque, preq->rq_host, MOVE_TYPE_Move);
-	if (rc) {
-		if (pj->ji_clterrmsg)
-			reply_text(preq, rc, pj->ji_clterrmsg);
-		else
-			req_reject(rc, 0, preq);
-		job_purge(pj);
-		(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
-		return;
-	}
-
 	if ((rc = svr_enquejob(pj)) != 0) {
 		job_purge(pj);
 		req_reject(rc, 0, preq);
 		(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
 		return;
 	}
-
+	
 	if (pj->ji_resvp) {
 		/*we are supposedly dealing with a reservation job:
 		 *1. make sure pointer is still valid - thoretically, there is a

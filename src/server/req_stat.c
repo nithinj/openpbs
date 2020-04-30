@@ -442,16 +442,14 @@ get_all_db_jobs(int load_type)
 	int count = 0;
 	static char jobs_from_time[DB_TIMESTAMP_LEN + 1] = {0};
 	static char jobs_ct_refr_time[DB_TIMESTAMP_LEN + 1] = {0};
+	char job_savetm[DB_TIMESTAMP_LEN + 1] = {0};
 
 	/* fill in options */
-	if (load_type == LOADJOB_COUNTS) {
-		if (strncmp(jobs_ct_refr_time, jobs_from_time, DB_TIMESTAMP_LEN) < 0)
-			opts.timestamp = jobs_from_time;
-		else
-			opts.timestamp = jobs_ct_refr_time;
-	} else {
+	if (load_type == LOADJOB_COUNTS)
+		opts.timestamp = jobs_ct_refr_time;
+	else
 		opts.timestamp = jobs_from_time;
-	}
+	strcpy(job_savetm, opts.timestamp);
 
 	opts.flags = load_type;
 	obj.pbs_db_obj_type = PBS_DB_JOB;
@@ -472,22 +470,25 @@ get_all_db_jobs(int load_type)
 			sprintf(log_buffer, "Failed to refresh job %s", dbjob.ji_jobid);
 			log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, LOG_NOTICE, msg_daemonname, log_buffer);
 		}
-		if (refreshed)
+		if (refreshed) {
 			count++;
+			if (dbjob.ji_savetm && (strncmp(job_savetm, dbjob.ji_savetm, DB_TIMESTAMP_LEN) < 0))
+				strcpy(job_savetm, dbjob.ji_savetm);
+		}
 
 		pbs_db_reset_obj(&obj);
 	}
 
 	pbs_db_cursor_close(conn, state);
 
-	sprintf(log_buffer, "Refreshed %d jobs", count);
-	log_err(-1, __func__, log_buffer);
+	if (load_type == LOADJOB_FULL)
+		strcpy(jobs_from_time, job_savetm);
 
-	if (pj && pj->ji_savetm) {
-		if (load_type == LOADJOB_COUNTS)
-			strcpy(jobs_ct_refr_time, pj->ji_savetm);
-		else
-			strcpy(jobs_from_time, pj->ji_savetm);
+	strcpy(jobs_ct_refr_time, job_savetm);
+	
+	if (count) {
+		sprintf(log_buffer, "Refreshed %d jobs", count);
+		log_err(-1, __func__, log_buffer);
 	}
 
 	return 0;

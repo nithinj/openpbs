@@ -4947,6 +4947,7 @@ svr_saveorpurge_finjobhist(job *pjob)
 		job_purge(pjob);
 	}
 }
+
 /**
  * @brief
  *		Function name: svr_clean_job_history
@@ -5005,8 +5006,10 @@ svr_clean_job_history(struct work_task *pwt)
 				else {
 					if (((walltime_used = get_used_wall(pjob)) == -1) ||
 						!(pjob->ji_wattr[(int) JOB_ATR_stime].at_flags & ATR_VFLAG_SET)) {
-						log_err(-1, "svr_clean_job_history",
-							"Finished job missing start-time/walltime used, cannot clean history");
+						pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_val.at_long = time_now;
+						pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_flags |= ATR_VFLAG_SET;
+						//log_err(-1, "svr_clean_job_history",
+						//	"Finished job missing start-time/walltime used, cannot clean history");
 						pjob = nxpjob;
 						continue;
 					}
