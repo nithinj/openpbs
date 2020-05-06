@@ -258,6 +258,7 @@ decode_attr_db(
 	struct attribute_def *padef,
 	struct attribute *pattr,
 	int limit,
+	int *redirect,
 	int unknown, char *savetm)
 {
 	int amt;
@@ -371,7 +372,17 @@ decode_attr_db(
 	}
 
 	/* now do the decoding */
-	for (index = 0; index < limit; index++) {
+	for (i = 0; i < limit; i++) {
+		
+		if (redirect) {
+			index = redirect[i];
+			if (index >= limit)
+				break;
+		} else {
+			index = i;
+		}
+		
+
 		/*
 		 * In the normal case we just decode the attribute directly
 		 * into the real attribute since there will be one entry only

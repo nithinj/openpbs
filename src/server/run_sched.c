@@ -775,8 +775,7 @@ db_to_svr_sched(struct pbs_sched *ps, pbs_db_sched_info_t *pdbsched)
 	strcpy(ps->sc_name, pdbsched->sched_name);
 	/* since we dont need the sched_name and sched_sv_name free here */
 	if ((decode_attr_db(ps, &pdbsched->attr_list, sched_attr_def,
-		ps->sch_attr,
-		(int) SCHED_ATR_LAST, 0, ps->sch_svtime)) != 0)
+		ps->sch_attr, (int) SCHED_ATR_LAST, NULL, 0, ps->sch_svtime)) != 0)
 		return -1;
 
 	strcpy(ps->sch_svtime, pdbsched->sched_savetm);

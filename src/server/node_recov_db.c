@@ -153,7 +153,7 @@ db_to_svr_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 		strcpy(pnode->nd_pque->qu_qs.qu_name, pdbnd->nd_pque);
 
 	if ((decode_attr_db(pnode, &pdbnd->attr_list, node_attr_def,
-		pnode->nd_attr, (int) ND_ATR_LAST, 0, pnode->nd_savetm)) != 0)
+		pnode->nd_attr, (int) ND_ATR_LAST, NULL, 0, pnode->nd_savetm)) != 0)
 		return -1;
 	
 	strcpy(pnode->nd_savetm, pdbnd->nd_savetm);

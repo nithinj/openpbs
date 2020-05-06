@@ -140,7 +140,7 @@ db_to_svr_que(pbs_queue *pque, pbs_db_que_info_t *pdbque)
 	strcpy(pque->qu_creattm, pdbque->qu_creattm);
 
 	if ((decode_attr_db(pque, &pdbque->attr_list, que_attr_def,
-		pque->qu_attr, (int) QA_ATR_LAST, 0, pque->qu_savetm)) != 0)
+		pque->qu_attr, (int) QA_ATR_LAST, NULL, 0, pque->qu_savetm)) != 0)
 		return -1;
 
 	strcpy(pque->qu_savetm, pdbque->qu_savetm);

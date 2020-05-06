@@ -210,10 +210,10 @@ populate_counts(job *pjob, int old_state, int old_flags)
 
 		if (old_state == JOB_STATE_QUEUED) {
 			account_entity_limit_usages(pjob, NULL, NULL, DECR, ETLIM_ACC_ALL);
-			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR, ETLIM_ACC_ALL);
+			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0), NULL, DECR, ETLIM_ACC_ALL);
 		} else if (pjob->ji_qs.ji_state == JOB_STATE_QUEUED) {
 			account_entity_limit_usages(pjob, NULL, NULL, INCR, ETLIM_ACC_ALL);
-			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, INCR, ETLIM_ACC_ALL);
+			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0), NULL, INCR, ETLIM_ACC_ALL);
 		}
 	}
 }
@@ -234,31 +234,25 @@ populate_counts(job *pjob, int old_state, int old_flags)
 static int
 db_to_svr_job_partial(job *pjob,  pbs_db_job_info_t *dbjob)
 {
+	int job_atr_part[] = {
+		JOB_ATR_in_queue,
+		JOB_ATR_at_server,
+		JOB_ATR_exec_vnode,
+		JOB_ATR_resource,
+		JOB_ATR_euser,
+		JOB_ATR_egroup,
+		JOB_ATR_project,
+		JOB_ATR_LAST
+	};
 	int old_state = pjob->ji_qs.ji_state;
 	int old_flags = pjob->ji_qs.ji_svrflags;
-	struct attribute_def *padef = job_attr_def;
-	struct attribute *pattr = pjob->ji_wattr;
 
-	//log_err(-1, __func__, "partial load");
-
-	/* Variables assigned constant values are not stored in the DB */
-	pjob->ji_qs.ji_jsversion = JSVERSION;
 	strcpy(pjob->ji_qs.ji_jobid, dbjob->ji_jobid);
 	pjob->ji_qs.ji_state = dbjob->ji_state;
-	strcpy(pjob->ji_qs.ji_queue, dbjob->ji_queue);
 
-	if (padef[JOB_ATR_exec_vnode].at_decode)
-		padef[JOB_ATR_exec_vnode].at_decode(&pattr[JOB_ATR_exec_vnode], padef->at_name, NULL, dbjob->ji_execvnode);
-
-	if (padef[JOB_ATR_at_server].at_decode)
-		padef[JOB_ATR_at_server].at_decode(&pattr[JOB_ATR_at_server], padef->at_name, NULL, dbjob->ji_server);
-
-	if (padef[JOB_ATR_euser].at_decode)
-		padef[JOB_ATR_euser].at_decode(&pattr[JOB_ATR_euser], padef->at_name, NULL, dbjob->ji_user);
-	if (padef[JOB_ATR_egroup].at_decode)
-		padef[JOB_ATR_egroup].at_decode(&pattr[JOB_ATR_egroup], padef->at_name, NULL, dbjob->ji_user);
-	if (padef[JOB_ATR_project].at_decode)
-		padef[JOB_ATR_project].at_decode(&pattr[JOB_ATR_project], padef->at_name, NULL, dbjob->ji_user);
+	if ((decode_attr_db(pjob, &dbjob->attr_list, job_attr_def, pjob->ji_wattr, (int)JOB_ATR_LAST,
+		job_atr_part, (int) JOB_ATR_UNKN, pjob->ji_savetm)) != 0)
+		return -1;
 
 	populate_counts(pjob, old_state, old_flags);
 
@@ -327,7 +321,7 @@ db_to_svr_job(job *pjob,  pbs_db_job_info_t *dbjob)
 #endif
 	pjob->ji_extended.ji_ext.ji_credtype = dbjob->ji_credtype;
 
-	if ((decode_attr_db(pjob, &dbjob->attr_list, job_attr_def, pjob->ji_wattr, (int)JOB_ATR_LAST, (int) JOB_ATR_UNKN, pjob->ji_savetm)) != 0)
+	if ((decode_attr_db(pjob, &dbjob->attr_list, job_attr_def, pjob->ji_wattr, (int)JOB_ATR_LAST, NULL, (int) JOB_ATR_UNKN, pjob->ji_savetm)) != 0)
 		return -1;
 
 	strcpy(pjob->ji_savetm, dbjob->ji_savetm);
@@ -416,8 +410,8 @@ db_to_svr_resv(resc_resv *presv, pbs_db_resv_info_t *pdresv)
 	presv->ri_qs.ri_type = pdresv->ri_type;
 
 	if ((decode_attr_db(presv, &pdresv->attr_list, resv_attr_def,
-		presv->ri_wattr,
-		(int) RESV_ATR_LAST, (int) RESV_ATR_UNKN, presv->ri_savetm)) != 0)
+		presv->ri_wattr, (int) RESV_ATR_LAST, NULL, 
+		(int) RESV_ATR_UNKN, presv->ri_savetm)) != 0)
 		return -1;
 
 	strcpy(presv->ri_savetm, pdresv->ri_savetm);

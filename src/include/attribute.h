@@ -587,7 +587,8 @@ extern int action_resc_resv(attribute *pattr, void *pobject, int actmode);
 extern int encode_attr_db(struct attribute_def *padef, struct attribute *pattr,
 	int numattr, pbs_db_attr_list_t *attr_list, int all);
 extern int decode_attr_db(void *parent, pbs_db_attr_list_t *attr_list,
-	struct attribute_def *padef, struct attribute *pattr, int limit, int unknown, char*);
+	struct attribute_def *padef, struct attribute *pattr, int limit,
+	int *redirect, int unknown, char*);
 
 extern int is_attr(int, char *, int);
 

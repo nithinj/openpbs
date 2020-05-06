@@ -197,11 +197,6 @@ struct pbs_db_job_info {
 	INTEGER  ji_qrank;
 	char     ji_savetm[DB_TIMESTAMP_LEN + 1];
 	char     ji_creattm[DB_TIMESTAMP_LEN + 1];
-	char     ji_execvnode[PBS_MAXHOSTNAME + 1]; /* name of current exec host */
-	char     ji_server[PBS_MAXHOSTNAME + 1]; /* name of current server */
-	char	ji_user[PBS_MAXHOSTNAME + 1];
-	char	ji_group[PBS_MAXHOSTNAME + 1];
-	char	ji_project[PBS_MAXHOSTNAME + 1];
 	pbs_db_attr_list_t attr_list; /* list of attributes */
 };
 typedef struct pbs_db_job_info pbs_db_job_info_t;

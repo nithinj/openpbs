@@ -237,13 +237,8 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 	snprintf(conn->conn_sql, MAX_SQL_LENGTH, "select "
 			"ji_jobid,"
 			"ji_state,"
-			"ji_queue,"
 			"to_char(ji_savetm, 'YYYY-MM-DD HH24:MI:SS.US') as ji_savetm, "
-			"attributes -> 'exec_vnode.' AS ji_exec_vnode, "
-			"attributes -> 'server.' AS ji_server, "
-			"attributes -> 'euser.' AS ji_user, "
-			"attributes -> 'egroup.' AS ji_group, "
-			"attributes -> 'project.' AS ji_project "
+			"hstore_to_array(attributes) as attributes "
 			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US')");
 		if (pg_prepare_stmt(conn, STMT_FINDJOBS_PARTIAL, conn->conn_sql, 1) != 0)
 			return -1;
@@ -366,19 +361,6 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 	return 0;
 }
 
-void
-rmv_attr_flags(char *attr_value)
-{
-	char *p, *q;
-	
-	q = attr_value;
-	if ((p = strchr(attr_value, '.'))) {
-		while(*p)
-			*q++ = *++p;
-		*q ='\0';
-	}
-}
-
 /**
  * @brief
  *	Load job data from the row into the job object
@@ -397,7 +379,8 @@ static int
 load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 {
 	char db_savetm[DB_TIMESTAMP_LEN + 1];
-	static int ji_jobid_fnum, ji_state_fnum, ji_execvnode_fnum, ji_queue_fnum, ji_savetm_fnum, ji_server_fnum, ji_user_fnum, ji_group_fnum, ji_project_fnum;
+	char *raw_array;
+	static int ji_jobid_fnum, ji_state_fnum, ji_execvnode_fnum, ji_savetm_fnum, attributes_fnum;
 
 	static int fnums_inited = 0;
 
@@ -405,14 +388,8 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 		/* cache the column numbers of various job table fields */
 		ji_jobid_fnum = PQfnumber(res, "ji_jobid");
 		ji_state_fnum = PQfnumber(res, "ji_state");
-		ji_queue_fnum = PQfnumber(res, "ji_queue");
 		ji_savetm_fnum = PQfnumber(res, "ji_savetm");
-		ji_execvnode_fnum = PQfnumber(res, "ji_exec_vnode");
-		ji_server_fnum = PQfnumber(res, "ji_server");
-
-		ji_user_fnum = PQfnumber(res, "ji_user");
-		ji_group_fnum = PQfnumber(res, "ji_group");
-		ji_project_fnum = PQfnumber(res, "ji_project");
+		attributes_fnum = PQfnumber(res, "attributes");
 
 		fnums_inited = 1;
 	}
@@ -427,19 +404,8 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 
 	GET_PARAM_STR(res, row, pj->ji_jobid, ji_jobid_fnum);
 	GET_PARAM_INTEGER(res, row, pj->ji_state, ji_state_fnum);
-	GET_PARAM_STR(res, row, pj->ji_queue, ji_queue_fnum);
-	GET_PARAM_STR(res, row, pj->ji_execvnode, ji_execvnode_fnum);
-	rmv_attr_flags(pj->ji_execvnode);
-	GET_PARAM_STR(res, row, pj->ji_server, ji_server_fnum);
-	rmv_attr_flags(pj->ji_server);
-
-	GET_PARAM_STR(res, row, pj->ji_user, ji_user_fnum);
-	rmv_attr_flags(pj->ji_user);
-	GET_PARAM_STR(res, row, pj->ji_group, ji_group_fnum);
-	rmv_attr_flags(pj->ji_group);
-	GET_PARAM_STR(res, row, pj->ji_project, ji_project_fnum);
-	rmv_attr_flags(pj->ji_project);
-
+	GET_PARAM_BIN(res, row, raw_array, attributes_fnum);
+	return (convert_array_to_db_attr_list(raw_array, &pj->attr_list));
 	return 0;
 }
 
