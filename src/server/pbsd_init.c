@@ -854,19 +854,6 @@ pbsd_init(int type)
 				que_attr_def[(int) QE_ATR_ResourceAssn].at_free(
 					&pque->qu_attr[(int) QE_ATR_ResourceAssn]);
 			}
-
-			/* load the queue counts */
-			if (pbs_db_get_statecounts(conn, pque->qu_qs.qu_name, PBS_NUMJOBSTATE, pque->qu_njstate) == -1) {
-				log_err(-1, __func__, "Failed to retreieve queue counts");
-				pbs_db_cursor_close(conn, state);
-				(void) pbs_db_end_trx(conn, PBS_DB_ROLLBACK);
-				return (-1);
-			}
-
-			for(i = 0; i < PBS_NUMJOBSTATE; i++) {
-				server.sv_jobstates[i] += pque->qu_njstate[i];
-				server.sv_numjobs += pque->qu_njstate[i];
-			}
 		}
 		pbs_db_reset_obj(&obj);
 		server.sv_numque++;

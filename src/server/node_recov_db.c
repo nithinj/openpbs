@@ -283,6 +283,7 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 
 	pdbnd->nd_ntype = pnode->nd_ntype;
 	pdbnd->nd_state = pnode->nd_state;
+	pdbnd->nd_state &= ~(INUSE_JOB|INUSE_JOBEXCL);
 	if (pnode->nd_pque)
 		strcpy(pdbnd->nd_pque, pnode->nd_pque->qu_qs.qu_name);
 	else

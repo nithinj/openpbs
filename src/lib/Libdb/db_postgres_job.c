@@ -380,7 +380,7 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 {
 	char db_savetm[DB_TIMESTAMP_LEN + 1];
 	char *raw_array;
-	static int ji_jobid_fnum, ji_state_fnum, ji_execvnode_fnum, ji_savetm_fnum, attributes_fnum;
+	static int ji_jobid_fnum, ji_state_fnum, ji_savetm_fnum, attributes_fnum;
 
 	static int fnums_inited = 0;
 

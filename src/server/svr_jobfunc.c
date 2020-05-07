@@ -311,6 +311,10 @@ svr_enquejob(job *pjob)
 		server.sv_jobstates[pjob->ji_qs.ji_state]++;
 	}
 
+	/* Not a new job, nothing more to do!! */
+	if (!(pjob->ji_newjob))
+		return 0;
+
 	/* place into queue in order of queue rank starting at end */
 
 	pjcur = (job *)GET_PRIOR(pque->qu_jobs);
@@ -492,6 +496,16 @@ svr_enquejob(job *pjob)
 		pjob->ji_qs.ji_un.ji_routet.ji_rteretry = 0;
 	}
 	return (0);
+}
+
+void decr_jobcounts(job *pjob)
+{
+	server.sv_numjobs--;
+	server.sv_jobstates[pjob->ji_qs.ji_state]--;
+	account_entity_limit_usages(pjob, NULL, NULL, DECR,
+			pjob->ji_etlimit_decr_queued ? ETLIM_ACC_ALL_MAX : ETLIM_ACC_ALL);
+	account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR,
+		pjob->ji_etlimit_decr_queued ? ETLIM_ACC_ALL_MAX : ETLIM_ACC_ALL);
 }
 
 /**
@@ -4922,7 +4936,8 @@ svr_saveorpurge_finjobhist(job *pjob)
 		svr_setjob_histinfo(pjob, T_FIN_JOB);
 		if (pjob->ji_ajtrk)
 			pjob->ji_ajtrk->tkm_flags &= ~TKMFLG_CHK_ARRAY;
-		delete_nodejob_entry(pjob);
+		decr_jobcounts(pjob);
+		//delete_nodejob_entry(pjob);
 	} else {
 		if (pjob->ji_deletehistory && flag) {
 			log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB,
@@ -5006,10 +5021,8 @@ svr_clean_job_history(struct work_task *pwt)
 				else {
 					if (((walltime_used = get_used_wall(pjob)) == -1) ||
 						!(pjob->ji_wattr[(int) JOB_ATR_stime].at_flags & ATR_VFLAG_SET)) {
-						pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_val.at_long = time_now;
+						pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_val.at_long = time_now + svr_history_duration;
 						pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_flags |= ATR_VFLAG_SET;
-						//log_err(-1, "svr_clean_job_history",
-						//	"Finished job missing start-time/walltime used, cannot clean history");
 						pjob = nxpjob;
 						continue;
 					}
@@ -5024,6 +5037,7 @@ svr_clean_job_history(struct work_task *pwt)
 
 			if (time_now >= (pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_val.at_long
 				+ svr_history_duration)) {
+				log_err(-1, pjob->ji_qs.ji_jobid, "purging!");
 				job_purge(pjob);
 				pjob = NULL;
 			}

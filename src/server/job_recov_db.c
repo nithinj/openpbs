@@ -98,6 +98,7 @@
 #include <memory.h>
 #include "libutil.h"
 #include "pbs_db.h"
+#include "server.h"
 
 
 #define MAX_SAVE_TRIES 3
@@ -192,30 +193,54 @@ svr_to_db_job(job *pjob, pbs_db_job_info_t *dbjob, int updatetype)
 static void
 populate_counts(job *pjob, int old_state, int old_flags)
 {
-	char 		 *pnodespec;
+	char		*pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
+	pbs_queue	*pque = find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0);
+	int		new_state = pjob->ji_qs.ji_state;
 
-	pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
-	if (old_state != pjob->ji_qs.ji_state) {
-		if (old_state == JOB_STATE_RUNNING) {
-			if (old_flags & JOB_SVFLG_RescAssn)
-				pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
-			set_resc_assigned((void *)pjob, 0, DECR);
-			dealloc_hosts(pjob, pnodespec);
-		} else if (pjob->ji_qs.ji_state == JOB_STATE_RUNNING) {
-			if (!(old_flags & JOB_SVFLG_RescAssn))
-				pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
-			alloc_hosts(pjob, pnodespec, JOB_OBJECT);
-			set_resc_assigned((void *)pjob, 0, INCR);
-		}
+	if (old_state == new_state)
+		return;
 
-		if (old_state == JOB_STATE_QUEUED) {
-			account_entity_limit_usages(pjob, NULL, NULL, DECR, ETLIM_ACC_ALL);
-			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0), NULL, DECR, ETLIM_ACC_ALL);
-		} else if (pjob->ji_qs.ji_state == JOB_STATE_QUEUED) {
-			account_entity_limit_usages(pjob, NULL, NULL, INCR, ETLIM_ACC_ALL);
-			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0), NULL, INCR, ETLIM_ACC_ALL);
-		}
+	/* Resc assigned */
+	if (old_state == JOB_STATE_RUNNING) {
+		if (old_flags & JOB_SVFLG_RescAssn)
+			pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
+		set_resc_assigned((void *)pjob, 0, DECR);
+		dealloc_hosts(pjob, pnodespec);
+	} else if (new_state == JOB_STATE_RUNNING) {
+		if (!(old_flags & JOB_SVFLG_RescAssn))
+			pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
+		alloc_hosts(pjob, pnodespec, JOB_OBJECT);
+		set_resc_assigned((void *)pjob, 0, INCR);
 	}
+
+	/* FGC limits */
+	if (old_state == JOB_STATE_QUEUED) {
+		account_entity_limit_usages(pjob, NULL, NULL, DECR, ETLIM_ACC_ALL);
+		account_entity_limit_usages(pjob, pque, NULL, DECR, ETLIM_ACC_ALL);
+	} else if (new_state == JOB_STATE_QUEUED) {
+		account_entity_limit_usages(pjob, NULL, NULL, INCR, ETLIM_ACC_ALL);
+		account_entity_limit_usages(pjob, pque, NULL, INCR, ETLIM_ACC_ALL);
+	}
+
+	/* server/queue level counts for job */
+	if (old_state == 0) {
+		server.sv_numjobs++;
+		pque->qu_numjobs++;
+	} else {
+		server.sv_jobstates[old_state]--;
+		pque->qu_njstate[old_state]--;
+	}
+
+	if (new_state == JOB_STATE_FINISHED) {
+		server.sv_numjobs--;
+		pque->qu_numjobs--;
+	} else {
+		server.sv_jobstates[new_state]++;
+		pque->qu_njstate[new_state]++;
+	}
+
+	sprintf(log_buffer, "old_state %d, new_state: %d, server.sv_numjobs %d", old_state, new_state, server.sv_numjobs);
+	log_err(-1, __func__, log_buffer);
 }
 
 /**
@@ -253,6 +278,8 @@ db_to_svr_job_partial(job *pjob,  pbs_db_job_info_t *dbjob)
 	if ((decode_attr_db(pjob, &dbjob->attr_list, job_attr_def, pjob->ji_wattr, (int)JOB_ATR_LAST,
 		job_atr_part, (int) JOB_ATR_UNKN, pjob->ji_savetm)) != 0)
 		return -1;
+	
+	strcpy(pjob->ji_qs.ji_queue, pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str);
 
 	populate_counts(pjob, old_state, old_flags);
 
