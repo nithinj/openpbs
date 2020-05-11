@@ -613,6 +613,8 @@ struct job {
 	 *	saved to database in req_commit.
 	 */
 	int             ji_newjob;
+	/* alien job exists only for counting purposes */
+	int             alien_job;
 
 	/*
 	 *	This variable is used to temporarily hold the script for a new job

@@ -2339,7 +2339,7 @@ next_task()
 
 	for (psched = (pbs_sched*) GET_NEXT(svr_allscheds); psched; psched = (pbs_sched*) GET_NEXT(psched->sc_link)) {
 		time_t delay;
-		if (((delay = psched->sch_next_schedule - time_now) <= 0) &&
+		if (((delay = (psched->sch_next_schedule - time_now)) <= 0) &&
 				psched->sch_attr[SCHED_ATR_scheduling].at_val.at_long) {
 			pbs_sched *new_sched;
 			new_sched = recov_sched_from_db(NULL, psched->sc_name, 0);

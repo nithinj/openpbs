@@ -803,6 +803,7 @@ encode_entlim(attribute *attr, pbs_list_head *phead, char *atname, char *rsname,
  *
  * @return 	int
  * @retval	0 	if ok
+ * @retval	1	force to execute action function
  * @retval	>0 	if error
  *
  */
@@ -845,11 +846,14 @@ set_entlim(attribute *old, attribute *new, enum batch_op op)
 				/* duplicate the record to be added */
 				newptr = dup_svr_entlim_leaf(pkey->recptr);
 				if (newptr) {
-					if (entlim_replace(pkey->key, newptr, oldctx, svr_freeleaf) != 0) {
+					int rc;
+					if ((rc = entlim_replace(pkey->key, newptr, oldctx, svr_freeleaf)) > 1) {
 						/* failed to add */
 						svr_freeleaf(newptr);
 						free(pkey);
 						return (PBSE_SYSTEM);
+					} else if (rc == 1) {
+						new->at_flags |= ATR_VFLAG_FORCE_ACT;
 					}
 				}
 			}
@@ -928,7 +932,7 @@ set_entlim(attribute *old, attribute *new, enum batch_op op)
 	}
 
 	old->at_flags |= ATR_VFLAG_SET | ATR_VFLAG_MODIFY | ATR_VFLAG_MODCACHE;
-	return (0);
+	return 0;
 }
 
 /**

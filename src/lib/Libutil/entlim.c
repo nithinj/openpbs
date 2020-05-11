@@ -193,7 +193,8 @@ entlim_add(const char *keystr, const void *recptr, void *ctx)
  *			    exiting record.
  *
  * @return	int
- * @retval	0	success, record replace/added
+ * @retval	0	success, record replaced
+ * @retval	1	success, new record added
  * @retval	-1	change failed
  */
 int
@@ -209,12 +210,13 @@ entlim_replace(const char *keystr, void *recptr, void *ctx,
 	pkey->recptr = recptr;
 	if (avl_add_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx) == AVL_IX_OK) {
 		free(pkey);
-		return 0;
+		return 1;
 	} else {
 		/* record with key may already exist, try deleting it */
 		rc = avl_find_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
 		if (rc == AVL_IX_OK) {
 			void *olddata = pkey->recptr;
+			int old_count = pkey->count;
 			rc = avl_delete_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
 			if (rc == AVL_IX_OK) {
 				fr_leaf(olddata);
@@ -223,6 +225,7 @@ entlim_replace(const char *keystr, void *recptr, void *ctx,
 				if (pkey == NULL)
 					return -1;
 				pkey->recptr = recptr;
+				pkey->count = old_count;
 				rc = avl_add_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
 			}
 		}

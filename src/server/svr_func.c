@@ -365,6 +365,9 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 	 *to a reservation and the job is told to run or the job exits
 	 */
 
+	sprintf(log_buffer, "(pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn): %d", (pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn));
+	log_err(-1, __func__, log_buffer);
+
 	if (!objtype) {
 		pjob = (job *)pobj;
 
@@ -383,6 +386,12 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 		} else {
 			return;			/* invalid op */
 		}
+
+		if (op == DECR)
+			log_err(-1, pjob->ji_qs.ji_jobid,"============== Decrementing CPUS ================");
+		else
+			log_err(-1, pjob->ji_qs.ji_jobid,"============== Incrementing CPUS ================");
+		
 
 		rescp = (resource *) GET_NEXT(pjob->ji_wattr[(int) JOB_ATR_resource].at_val.at_list);
 		if ((pjob->ji_qs.ji_substate == JOB_SUBSTATE_SUSPEND) ||
@@ -2003,7 +2012,8 @@ entlim_resum(struct work_task *pwt)
 	/* then for each job in the parent object, sum up its count/resource */
 
 	while (pj) {
-		if ((pj->ji_qs.ji_svrflags & JOB_SVFLG_SubJob) == 0) {
+		if (((pj->ji_qs.ji_svrflags & JOB_SVFLG_SubJob) == 0) && (pj->ji_qs.ji_state != JOB_STATE_MOVED) &&
+				(pj->ji_qs.ji_state != JOB_STATE_EXPIRED) && (pj->ji_qs.ji_state != JOB_STATE_FINISHED)) {
 			if (is_resc) {
 				account_entity_limit_usages(pj, pque, NULL, INCR, ETLIM_ACC_ALL_RES);
 			} else {
@@ -2043,7 +2053,7 @@ action_entlim_ct(attribute *pattr, void *pobject, int actmode)
 	if (rc != PBSE_NONE)
 		return rc;
 
-	if (actmode == ATR_ACTION_ALTER) {
+	if (actmode == ATR_ACTION_ALTER || actmode == ATR_ACTION_RECOV) {
 		/*
 		 * setup a work task to resum the count for this
 		 * limit after the "set" has been really set in the
@@ -3610,9 +3620,9 @@ set_entity_ct_sum_max(job *pjob, pbs_queue *pque, enum batch_op op)
 	/* then just return,  the job's resources were removed from the   */
 	/* entity sums when it went into the MOVED/FINISHED state	  */
 
-	if ((pjob->ji_qs.ji_state == JOB_STATE_MOVED) ||
+	if (op == INCR && ((pjob->ji_qs.ji_state == JOB_STATE_MOVED) ||
 		(pjob->ji_qs.ji_state == JOB_STATE_EXPIRED) ||
-		(pjob->ji_qs.ji_state == JOB_STATE_FINISHED)) {
+		(pjob->ji_qs.ji_state == JOB_STATE_FINISHED))) {
 		ET_LIM_DBG("exiting, ret 0 [job in %c state]", __func__, statechars[pjob->ji_qs.ji_state])
 		return 0;
 	}
@@ -4251,6 +4261,14 @@ account_entity_limit_usages(job *pjob, pbs_queue *pque, attribute *altered_resc,
 	enum batch_op op, int op_flag)
 {
 	int rc,ret_error = PBSE_NONE;
+
+	if (op == INCR)
+		log_err(-1, pjob->ji_qs.ji_jobid, "============== Incrementing usages ================");
+	else
+	{
+		log_err(-1, pjob->ji_qs.ji_jobid,"============== Decrementing usages ================");
+	}
+	
 
 	/* not doing NULL checks of parameters as this function is currently invoked from sane locations */
 

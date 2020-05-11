@@ -1001,8 +1001,13 @@ req_stat_svr(struct batch_request *preq)
 	svr_recov_db(0);
 	/* update count and state counts from sv_numjobs and sv_jobstates */
 
-	server.sv_attr[(int)SRV_ATR_TotalJobs].at_val.at_long = server.sv_numjobs;
-	server.sv_attr[(int)SRV_ATR_TotalJobs].at_flags |= ATR_VFLAG_SET|ATR_VFLAG_MODCACHE|ATR_VFLAG_MODIFY;
+	if (!svr_chk_history_conf()) {
+		server.sv_attr[(int)SRV_ATR_TotalJobs].at_val.at_long = server.sv_numjobs;
+	} else {
+		server.sv_attr[(int)SRV_ATR_TotalJobs].at_val.at_long = server.sv_numjobs -
+			(server.sv_jobstates[JOB_STATE_MOVED] + server.sv_jobstates[JOB_STATE_FINISHED] + server.sv_jobstates[JOB_STATE_EXPIRED]);
+	}
+	server.sv_attr[(int)SRV_ATR_TotalJobs].at_flags |= ATR_VFLAG_SET|ATR_VFLAG_MODCACHE;
 	update_state_ct(&server.sv_attr[(int)SRV_ATR_JobsByState],
 		server.sv_jobstates,
 		server.sv_jobstbuf);

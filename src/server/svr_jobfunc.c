@@ -498,16 +498,6 @@ svr_enquejob(job *pjob)
 	return (0);
 }
 
-void decr_jobcounts(job *pjob)
-{
-	server.sv_numjobs--;
-	server.sv_jobstates[pjob->ji_qs.ji_state]--;
-	account_entity_limit_usages(pjob, NULL, NULL, DECR,
-			pjob->ji_etlimit_decr_queued ? ETLIM_ACC_ALL_MAX : ETLIM_ACC_ALL);
-	account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR,
-		pjob->ji_etlimit_decr_queued ? ETLIM_ACC_ALL_MAX : ETLIM_ACC_ALL);
-}
-
 /**
  * @brief
  * 		svr_dequejob() - remove job from whatever queue its in and reduce counts
@@ -4936,7 +4926,6 @@ svr_saveorpurge_finjobhist(job *pjob)
 		svr_setjob_histinfo(pjob, T_FIN_JOB);
 		if (pjob->ji_ajtrk)
 			pjob->ji_ajtrk->tkm_flags &= ~TKMFLG_CHK_ARRAY;
-		decr_jobcounts(pjob);
 		//delete_nodejob_entry(pjob);
 	} else {
 		if (pjob->ji_deletehistory && flag) {
@@ -5398,7 +5387,7 @@ svr_setjob_histinfo(job *pjob, histjob_type type)
 
 	if ((pjob->ji_qs.ji_state != JOB_STATE_MOVED) &&
 		(pjob->ji_qs.ji_state != JOB_STATE_EXPIRED) &&
-		(pjob->ji_qs.ji_state != JOB_STATE_FINISHED)) {
+		(pjob->ji_qs.ji_state != JOB_STATE_FINISHED)) {		
 		account_entity_limit_usages(pjob, NULL, NULL, DECR,
 				pjob->ji_etlimit_decr_queued ? ETLIM_ACC_ALL_MAX : ETLIM_ACC_ALL);
 		account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR,

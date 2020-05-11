@@ -415,7 +415,9 @@ decode_attr_db(
 					/* for INCR case of entity limit, decode locally */
 					if (padef[index].at_decode) {
 						padef[index].at_decode(&tmpa, pal->al_name, pal->al_resc, pal->al_value);
-						padef[index].at_set(&pattr[index], &tmpa, INCR);
+						padef[index].at_set(&pattr[index], &tmpa, SET);
+						if (*savetm == '\0' || (tmpa.at_flags & ATR_VFLAG_FORCE_ACT))
+							padef[index].at_action(&pattr[index], parent, ATR_ACTION_RECOV);
 						padef[index].at_free(&tmpa);
 					}
 				} else {

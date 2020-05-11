@@ -145,6 +145,7 @@ struct size_value {
 struct attr_entity {
 	void	*ae_tree;	/* root of tree */
 	time_t	 ae_newlimittm;	/* time last limit added */
+	char *ent_str;
 };
 
 union attrval {
@@ -249,6 +250,7 @@ typedef struct ecl_attribute_def ecl_attribute_def;
 #define ATR_VFLAG_INDIRECT	0x10	/* indirect pointer to resource */
 #define ATR_VFLAG_TARGET	0x20	/* target of indirect resource  */
 #define ATR_VFLAG_HOOK		0x40	/* value set by a hook script   */
+#define ATR_VFLAG_FORCE_ACT	0x80	/* Trigger action function anyway */
 
 /* Defines for Parent Object type field in the attribute definition	*/
 /* really only used for telling queue types apart			*/
