@@ -365,8 +365,6 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 	 *to a reservation and the job is told to run or the job exits
 	 */
 
-	sprintf(log_buffer, "(pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn): %d", (pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn));
-	log_err(-1, __func__, log_buffer);
 
 	if (!objtype) {
 		pjob = (job *)pobj;
@@ -376,21 +374,22 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 			return;
 
 		if (op == INCR) {
-			if (pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn)
+			if (!pjob->alien_job && pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn)
 				return;		/* already added in */
 			pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
 		} else if (op == DECR) {
-			if ((pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn) == 0)
+			if (!pjob->alien_job && (pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn) == 0)
 				return;		/* not currently included */
 			pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
 		} else {
 			return;			/* invalid op */
 		}
 
-		if (op == DECR)
-			log_err(-1, pjob->ji_qs.ji_jobid,"============== Decrementing CPUS ================");
+		/*if (op == DECR)
+			log_err(-1, pjob->ji_qs.ji_jobid,"-------------- Decrementing CPUS --------------");
 		else
-			log_err(-1, pjob->ji_qs.ji_jobid,"============== Incrementing CPUS ================");
+			log_err(-1, pjob->ji_qs.ji_jobid,"++++++++++++++ Incrementing CPUS ++++++++++++++");
+		*/
 		
 
 		rescp = (resource *) GET_NEXT(pjob->ji_wattr[(int) JOB_ATR_resource].at_val.at_list);
@@ -4262,12 +4261,12 @@ account_entity_limit_usages(job *pjob, pbs_queue *pque, attribute *altered_resc,
 {
 	int rc,ret_error = PBSE_NONE;
 
-	if (op == INCR)
+	/*if (op == INCR)
 		log_err(-1, pjob->ji_qs.ji_jobid, "============== Incrementing usages ================");
 	else
 	{
 		log_err(-1, pjob->ji_qs.ji_jobid,"============== Decrementing usages ================");
-	}
+	}*/
 	
 
 	/* not doing NULL checks of parameters as this function is currently invoked from sane locations */

@@ -130,6 +130,8 @@ extern int make_pbs_list_attr_db(void *parent, pbs_db_attr_list_t *attr_list, st
 static int
 db_to_svr_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 {
+	int old_state = pnode->nd_state;
+
 	if (pdbnd->nd_name && pdbnd->nd_name[0] != 0) {
 		pnode->nd_name = strdup(pdbnd->nd_name);
 		if (pnode->nd_name == NULL)
@@ -148,7 +150,10 @@ db_to_svr_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 		pnode->nd_hostname = NULL;
 
 	pnode->nd_ntype = pdbnd->nd_ntype;
-	pnode->nd_state = pdbnd->nd_state;
+	/* Do not refresh JOB related state as it calculated on the fly */
+	pnode->nd_state = (pdbnd->nd_state & ~(INUSE_JOB|INUSE_JOBEXCL));
+	pnode->nd_state |= (old_state & (INUSE_JOB|INUSE_JOBEXCL));
+
 	if (pnode->nd_pque)
 		strcpy(pnode->nd_pque->qu_qs.qu_name, pdbnd->nd_pque);
 
@@ -283,7 +288,6 @@ svr_to_db_node(struct pbsnode *pnode, pbs_db_node_info_t *pdbnd)
 
 	pdbnd->nd_ntype = pnode->nd_ntype;
 	pdbnd->nd_state = pnode->nd_state;
-	pdbnd->nd_state &= ~(INUSE_JOB|INUSE_JOBEXCL);
 	if (pnode->nd_pque)
 		strcpy(pdbnd->nd_pque, pnode->nd_pque->qu_qs.qu_name);
 	else

@@ -197,18 +197,20 @@ populate_counts(job *pjob, int old_state)
 	pbs_queue	*pque = find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0);
 	int		new_state = pjob->ji_qs.ji_state;
 
+	/*sprintf(log_buffer, "old_state: %d, new_state: %d", old_state, new_state);
+	log_err(-1, pjob->ji_qs.ji_jobid, log_buffer);
+	*/
+
 	if (old_state == new_state)
 		return;
 
 	pjob->alien_job = 1;
 
 	/* Resc assigned */
-	if (old_state == JOB_STATE_RUNNING) {
-		pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;	
+	if (old_state == JOB_STATE_RUNNING) {	
 		set_resc_assigned((void *)pjob, 0, DECR);
 		dealloc_hosts(pjob, pnodespec);
 	} else if (new_state == JOB_STATE_RUNNING) {
-		pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
 		alloc_hosts(pjob, pnodespec, JOB_OBJECT);
 		set_resc_assigned((void *)pjob, 0, INCR);
 	}

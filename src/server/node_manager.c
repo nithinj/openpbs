@@ -2621,8 +2621,6 @@ deallocate_job_from_node(job *pjob, struct pbsnode *pnode)
 	struct	pbssubn	*np;
 	struct	jobinfo	*jp, *prev, *next;
 
-	DBPRT(("%s: entered\n", __func__))
-
 	if ((pjob == NULL) || (pnode == NULL)) {
 		return (0);
 	}
@@ -2657,6 +2655,9 @@ deallocate_job_from_node(job *pjob, struct pbsnode *pnode)
 			np->inuse &= ~(INUSE_JOB|INUSE_JOBEXCL);
 		}
 	}
+
+	if (pjob->ji_qs.ji_substate == JOB_SUBSTATE_PROVISION)
+		free_prov_vnode(pnode);
 
 	return (numcpus);
 }
@@ -6323,6 +6324,7 @@ dealloc_hosts(job  *pjob, char *execvnod_in) {
 		}
 	}
 	free(execvncopy);
+	pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_HasNodes;
 }
 
 void
@@ -6350,7 +6352,6 @@ alloc_subnodes(pbs_node *pnode, job  *pjob, int hw_ncpus, int alloc_how)
 				else {
 					break;	/* if last subnode, use it even if in use */
 				}
-				
 			}
 
 			snp->inuse |= alloc_how;
@@ -7026,113 +7027,11 @@ set_nodes(void *pobj, int objtype, char *execvnod_in, char **execvnod_out, char 
 void
 free_nodes(job *pjob)
 {
-	struct	pbssubn	*np;
-	mom_svrinfo_t	*psvrmom;
-	struct  pbsnode *pnode;
-	struct	jobinfo	*jp, *prev, *next;
-	int     i;
-	int     j;
-	int     ivnd;
-	int     still_has_jobs;	/* still jobs on this vnode */
-	int     special_case = 0;
+	char		*pnodespec = pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str;
+	if (!pnodespec)
+		return;
 
-	DBPRT(("%s: entered\n", __func__))
-
-	/* decrement number of jobs on the Mom who is the first Mom */
-	/* for the job, Mother Superior; incremented in set_nodes() */
-	/* and saved in ji_destin in assign_hosts()		    */
-	if (((pjob->ji_qs.ji_svrflags & JOB_SVFLG_HasNodes) != 0) &&
-		(pjob->ji_qs.ji_destin[0] != '\0')) {
-		pnode = find_nodebyname(pjob->ji_qs.ji_destin, NO_LOCK);
-		if (pnode) {
-			psvrmom = pnode->nd_moms[0]->mi_data;
-			if (--psvrmom->msr_numjobs < 0)
-				psvrmom->msr_numjobs = 0;
-		}
-	}
-
-	/* Now loop through the Moms and remove the jobindx entry */
-	/* and remove this jobs's jobinfo entry from each vnode   */
-	for (i=0; i<mominfo_array_size; i++) {
-		if (mominfo_array[i] == NULL)
-			continue;
-		psvrmom = (mom_svrinfo_t *)(mominfo_array[i]->mi_data);
-
-		for (j=0; j<psvrmom->msr_jbinxsz; j++) {
-			if (psvrmom->msr_jobindx[j] == pjob) {
-				psvrmom->msr_jobindx[j] = NULL;
-				if (is_called_by_job_purge)
-					special_case = 1;
-			}
-		}
-
-		if (special_case) {
-			snprintf(log_buffer, LOG_BUF_SIZE, "\n================================================================"
-				"======================================================\nPBSPro diagnostic information."
-				" Share this log with PBSPro Team.\n=========================================="
-				"============================================================================\n"
-				"Mom's state:%lu, number of jobs on this node: %d, number of vnodes: %d.\n"
-				"Other jobs present in the node follows:",
-				psvrmom->msr_state, psvrmom->msr_numjobs, psvrmom->msr_numvnds);
-			log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB, LOG_INFO, pjob->ji_qs.ji_jobid, log_buffer);
-			for (j=0; j<psvrmom->msr_jbinxsz; j++)
-				if (psvrmom->msr_jobindx[j] != NULL)
-					log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB, LOG_INFO, pjob->ji_qs.ji_jobid, psvrmom->msr_jobindx[j]->ji_qs.ji_jobid);
-			sprintf(log_buffer, "===================================================================="
-				"==================================================");
-			log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB, LOG_INFO, pjob->ji_qs.ji_jobid, log_buffer);
-		}
-
-		for (ivnd = 0; ivnd < psvrmom->msr_numvnds; ++ivnd) {
-			pnode = psvrmom->msr_children[ivnd];
-			still_has_jobs = 0;
-			for (np = pnode->nd_psn; np; np = np->next) {
-				for (prev=NULL, jp=np->jobs; jp; jp=next) {
-					next = jp->next;
-					if (jp->job != pjob) {
-						prev = jp;
-						still_has_jobs = 1; /* another job still here */
-						continue;
-					}
-
-					DBPRT(("Freeing node %s/%ld from job %s\n",
-						pnode->nd_name, np->index,
-						pjob->ji_qs.ji_jobid))
-					if (prev == NULL)
-						np->jobs = next;
-					else
-						prev->next = next;
-					if (jp->has_cpu) {
-						pnode->nd_nsnfree++;	/* up count of free */
-						if (pnode->nd_nsnfree > pnode->nd_nsn) {
-							log_event(PBSEVENT_SYSTEM,
-								PBS_EVENTCLASS_NODE, LOG_ALERT,
-								pnode->nd_name,
-								"CPU count incremented free more than total");
-						}
-					}
-					free(jp);
-					jp = NULL;
-					DBPRT(("%s: upping free count to %ld\n", __func__,
-						pnode->nd_nsnfree))
-				}
-				if (np->jobs == NULL) {
-					np->inuse &= ~(INUSE_JOB|INUSE_JOBEXCL);
-				}
-			}
-			if (!still_has_jobs) {
-				/* call function to check and free the node from the prov list
-				 and reset wait_prov flag, if set */
-				if (pjob->ji_qs.ji_substate == JOB_SUBSTATE_PROVISION)
-					free_prov_vnode(pnode);
-			}
-		}
-		special_case = 0;
-	}
-	pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_HasNodes;
-
-	deallocate_cpu_licenses(pjob);
-	is_called_by_job_purge = 0;
+	dealloc_hosts(pjob, pjob->ji_wattr[(int)JOB_ATR_exec_vnode].at_val.at_str);
 }
 
 /**
