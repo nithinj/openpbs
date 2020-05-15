@@ -773,6 +773,62 @@ encode_entlim(attribute *attr, pbs_list_head *phead, char *atname, char *rsname,
 	return (grandtotal);
 }
 
+/**
+ * @brief
+ * 	entlim_replace - replace a record with a key based on the key-string
+ *	if the record already exists, if not just return
+ * note: It will copy the slf_sum value to the ctx.
+ *
+ * @param[in] keystr - key string whose key is to be built
+ * @param[in] recptr - pointer to record
+ * @param[in] ctx - pointer to avl descending order tree info
+ * @param[in] free_leaf() - function called to delete data record when removing
+ *			    exiting record.
+ *
+ * @return	int
+ * @retval	0	success, record replaced
+ * @retval	-1	change failed
+ */
+int
+entlim_replace(const char *keystr, void *recptr, void *ctx,
+	void fr_leaf(void *))
+{
+	pbs_entlim_key_t *pkey;
+	int		  rc;
+
+	pkey = entlim_create_key(keystr);
+	if (pkey == NULL)
+		return -1;
+
+	/* record with key may already exist, try deleting it */
+	rc = avl_find_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
+	if (rc == AVL_IX_OK) {
+		void *olddata = pkey->recptr;
+		rc = avl_delete_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
+		if (rc == AVL_IX_OK) {
+			free(pkey);
+			if ((pkey = entlim_create_key(keystr)) == NULL)
+				return -1;
+			svr_entlim_leaf_t *plf = recptr;
+			//plf->slf_rescd->rs_free(&plf->slf_sum);
+			if (((svr_entlim_leaf_t *)olddata)->slf_sum.at_flags & ATR_VFLAG_SET) {
+				plf->slf_rescd->rs_decode(&plf->slf_sum, NULL, NULL, "0");
+				plf->slf_rescd->rs_set(&plf->slf_sum, &((svr_entlim_leaf_t *)olddata)->slf_sum, SET);
+			}
+			pkey->recptr = recptr;
+			rc = avl_add_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
+			fr_leaf(olddata);
+		}
+	} else
+		rc = AVL_IX_OK;
+	
+	free(pkey);
+	if (rc == AVL_IX_OK)
+		return 0;
+	else
+		return -1;
+}
+
 
 /**
  * @brief
@@ -816,22 +872,89 @@ set_entlim(attribute *old, attribute *new, enum batch_op op)
 	void              *oldctx;
 	svr_entlim_leaf_t *newptr;
 	svr_entlim_leaf_t *exptr;
-	attribute	   save_old;
+	void              *tmpctx;
+	attribute	   tmpa;
 
 	assert(old && new && (new->at_flags & ATR_VFLAG_SET));
+
+	DBPRT(("set_entlim() op: %d", op))
 
 	switch (op) {
 		case SET:
 			/* free the old, reinitialize it and then set old  */
 			/* to to new by by falling into the "INCR" case    */
-			save_old = *old;
+			tmpa = *old;
 			old->at_val.at_enty.ae_tree = entlim_initialize_ctx();
 			if (old->at_val.at_enty.ae_tree == NULL) {
-				*old = save_old;
+				*old = tmpa;
 				return (PBSE_SYSTEM);
 			}
-			free_entlim(&save_old);	/* have new alloc, discard the saved */
+			free_entlim(&tmpa);	/* have new alloc, discard the saved */
 			/* fall into INCR case */
+			set_entlim(old, new, INCR);
+			break;
+
+
+		case DIFFSET:
+
+			pkey = NULL;
+			newctx = new->at_val.at_enty.ae_tree;
+			oldctx = old->at_val.at_enty.ae_tree;
+
+			memset(&tmpa, 0, sizeof(attribute));
+			tmpa.at_val.at_enty.ae_tree = entlim_initialize_ctx();
+			tmpctx = tmpa.at_val.at_enty.ae_tree;
+
+			if (oldctx == NULL)
+				oldctx = entlim_initialize_ctx();
+
+			/* First iteration is to find whether there is any new entities
+			if so, need to trigger action function */
+			pkey = NULL;
+			while ((pkey = entlim_get_next(pkey, newctx)) != NULL) {
+				if (entlim_get(pkey->key, oldctx) == NULL) {
+					tmpa.at_flags |= ATR_VFLAG_FORCE_ACT;
+					break;
+				}
+			}
+
+			/* Copy all the limit entries from old to tmpa if flags is not set.
+			These are supplimentary counts populated for actual limits set */
+			pkey = NULL;
+			while ((pkey = entlim_get_next(pkey, oldctx)) != NULL) {
+				if (!(((svr_entlim_leaf_t *)pkey->recptr)->slf_limit.at_flags & ATR_VFLAG_SET)) {
+					newptr = dup_svr_entlim_leaf(pkey->recptr);
+					if (newptr) {
+						if (entlim_add_replace(pkey->key, newptr, tmpctx, svr_freeleaf) > 1) {
+							/* failed to add */
+							svr_freeleaf(newptr);
+							free(pkey);
+							return (PBSE_SYSTEM);
+						}
+					}
+				}
+			}
+
+			/* Go through the newctx and add all matching values from old to new.
+			 entlim_replace will only copy slf_sum, which is the accummulated count we are looking for */
+			pkey = NULL;
+			while ((pkey = entlim_get_next(pkey, oldctx)) != NULL) {
+				/* duplicate the record to be added */
+				newptr = dup_svr_entlim_leaf(pkey->recptr);
+				if (newptr) {
+					if (entlim_replace(pkey->key, newptr, newctx, svr_freeleaf) != 0) {
+						/* failed to add */
+						svr_freeleaf(newptr);
+						free(pkey);
+						return (PBSE_SYSTEM);
+					}
+				}
+			}
+
+			free_entlim(old);
+			*old = tmpa;
+			/* fall into INCR */
+			
 
 		case INCR:
 			/* walk "new" and for each leaf, add it to "old" */
@@ -847,18 +970,19 @@ set_entlim(attribute *old, attribute *new, enum batch_op op)
 				newptr = dup_svr_entlim_leaf(pkey->recptr);
 				if (newptr) {
 					int rc;
-					if ((rc = entlim_replace(pkey->key, newptr, oldctx, svr_freeleaf)) > 1) {
+					if ((rc = entlim_add_replace(pkey->key, newptr, oldctx, svr_freeleaf)) > 1) {
 						/* failed to add */
 						svr_freeleaf(newptr);
 						free(pkey);
 						return (PBSE_SYSTEM);
-					} else if (rc == 1) {
-						new->at_flags |= ATR_VFLAG_FORCE_ACT;
+					} else if (rc == 1 && op == INCR) {
+						old->at_flags |= ATR_VFLAG_FORCE_ACT;
 					}
 				}
 			}
 			old->at_val.at_enty.ae_newlimittm = time(0);
 			break;
+
 
 		case DECR:
 

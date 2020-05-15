@@ -466,7 +466,7 @@ enum mgr_obj {
 #define PBS_AUTH_KEY_LEN    (129)
 
 enum batch_op {	SET, UNSET, INCR, DECR,
-	EQ, NE, GE, GT, LE, LT, DFLT
+	EQ, NE, GE, GT, LE, LT, DFLT, DIFFSET
 };
 
 /* PBS supported authentication methods */

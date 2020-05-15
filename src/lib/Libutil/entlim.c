@@ -95,7 +95,7 @@ entlim_initialize_ctx(void)
  *
  */
 
-static pbs_entlim_key_t *
+pbs_entlim_key_t *
 entlim_create_key(const char *keystr)
 {
 	size_t		 keylen;
@@ -182,7 +182,7 @@ entlim_add(const char *keystr, const void *recptr, void *ctx)
 
 /**
  * @brief
- * 	entlim_replace - replace a record with a key based on the key-string
+ * 	entlim_add_replace - replace a record with a key based on the key-string
  *	if the record already exists, if not then this becomes equivalent
  *	to entlim_add().
  *
@@ -198,7 +198,7 @@ entlim_add(const char *keystr, const void *recptr, void *ctx)
  * @retval	-1	change failed
  */
 int
-entlim_replace(const char *keystr, void *recptr, void *ctx,
+entlim_add_replace(const char *keystr, void *recptr, void *ctx,
 	void fr_leaf(void *))
 {
 	pbs_entlim_key_t *pkey;
@@ -216,7 +216,6 @@ entlim_replace(const char *keystr, void *recptr, void *ctx,
 		rc = avl_find_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
 		if (rc == AVL_IX_OK) {
 			void *olddata = pkey->recptr;
-			int old_count = pkey->count;
 			rc = avl_delete_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
 			if (rc == AVL_IX_OK) {
 				fr_leaf(olddata);
@@ -225,7 +224,6 @@ entlim_replace(const char *keystr, void *recptr, void *ctx,
 				if (pkey == NULL)
 					return -1;
 				pkey->recptr = recptr;
-				pkey->count = old_count;
 				rc = avl_add_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
 			}
 		}

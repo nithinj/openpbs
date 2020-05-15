@@ -6511,7 +6511,7 @@ finish_loop(time_t waittime)
 
 	if (waittime > next_sample_time)
 		waittime = next_sample_time;
-	DBPRT(("%s: waittime %lu\n", __func__, (unsigned long) waittime))
+	//DBPRT(("%s: waittime %lu\n", __func__, (unsigned long) waittime))
 
 	/* wait for a request to process */
 	if (wait_request(waittime, NULL) != 0)
@@ -9931,7 +9931,6 @@ main(int argc, char *argv[])
 			next_sample_time = max_check_poll;
 		else if ((next_sample_time += inc_check_poll) > max_check_poll)
 			next_sample_time = max_check_poll;
-		DBPRT(("next_sample_time = %d\n", next_sample_time))
 
 		/* are there any jobs? No - then don't bother with Resources */
 

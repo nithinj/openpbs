@@ -230,7 +230,7 @@ populate_counts(job *pjob, int old_state)
 	} else if (new_state == JOB_STATE_QUEUED) {
 		account_entity_limit_usages(pjob, NULL, NULL, INCR, ETLIM_ACC_ALL);
 		account_entity_limit_usages(pjob, pque, NULL, INCR, ETLIM_ACC_ALL);
-	} else if (old_state == JOB_STATE_RUNNING && pjob->ji_etlimit_decr_queued) {
+	} else if (old_state == JOB_STATE_RUNNING) {
 		account_entity_limit_usages(pjob, NULL, NULL, DECR,
 				pjob->ji_etlimit_decr_queued ? ETLIM_ACC_ALL_MAX : ETLIM_ACC_ALL);
 		account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR,

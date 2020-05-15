@@ -403,8 +403,8 @@ decode_attr_db(
 		 */
 
 		/* first free the existing attribute value, if any */
-		if (!(padef[index].at_flags & ATR_DFLAG_NOSAVM))
-			padef[index].at_free(&pattr[index]);
+		if (!(padef[index].at_flags & ATR_DFLAG_NOSAVM) && (padef[index].at_type != ATR_TYPE_ENTITY))
+				padef[index].at_free(&pattr[index]);
 
 		pal = palarray[index];
 		while (pal) {
@@ -415,8 +415,8 @@ decode_attr_db(
 					/* for INCR case of entity limit, decode locally */
 					if (padef[index].at_decode) {
 						padef[index].at_decode(&tmpa, pal->al_name, pal->al_resc, pal->al_value);
-						padef[index].at_set(&pattr[index], &tmpa, SET);
-						if (*savetm == '\0' || (tmpa.at_flags & ATR_VFLAG_FORCE_ACT))
+						padef[index].at_set(&pattr[index], &tmpa, DIFFSET);
+						if (*savetm == '\0' || (pattr[index].at_flags & ATR_VFLAG_FORCE_ACT))
 							padef[index].at_action(&pattr[index], parent, ATR_ACTION_RECOV);
 						padef[index].at_free(&tmpa);
 					}

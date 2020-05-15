@@ -96,10 +96,17 @@ void	*entlim_get(const char *keystr, void *ctx);
 /* add a record including key and data, based on a key string */
 int	 entlim_add(const char *entity, const void *recptr, void *ctx);
 
+/* add or replace a record including key and data, based on a key string */
+int
+entlim_add_replace(const char *entity, void *recptr, void *ctx,
+	void free_leaf(void *));
 /* replace a record including key and data, based on a key string */
 int
 entlim_replace(const char *entity, void *recptr, void *ctx,
 	void free_leaf(void *));
+
+pbs_entlim_key_t *
+entlim_create_key(const char *keystr);
 
 /* delete a record based on a key string */
 int	 entlim_delete(const char *entity, void *ctx, void free_leaf(void *));
