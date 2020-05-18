@@ -374,22 +374,22 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 			return;
 
 		if (op == INCR) {
-			if (!pjob->alien_job && pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn)
+			if (pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn)
 				return;		/* already added in */
 			pjob->ji_qs.ji_svrflags |= JOB_SVFLG_RescAssn;
 		} else if (op == DECR) {
-			if (!pjob->alien_job && (pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn) == 0)
+			if ((pjob->ji_qs.ji_svrflags & JOB_SVFLG_RescAssn) == 0)
 				return;		/* not currently included */
 			pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_RescAssn;
 		} else {
 			return;			/* invalid op */
 		}
 
-		/*if (op == DECR)
+		if (op == DECR)
 			log_err(-1, pjob->ji_qs.ji_jobid,"-------------- Decrementing CPUS --------------");
 		else
 			log_err(-1, pjob->ji_qs.ji_jobid,"++++++++++++++ Incrementing CPUS ++++++++++++++");
-		*/
+		
 		
 
 		rescp = (resource *) GET_NEXT(pjob->ji_wattr[(int) JOB_ATR_resource].at_val.at_list);
@@ -497,6 +497,7 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 					if (pr == NULL)
 						return;
 				}
+				//log_errf(("updating sysru with %s, op=%d", rscdef->rs_name, op))
 				rscdef->rs_set(&pr->rs_value, &rescp->rs_value, op);
 				sysru->at_flags |= ATR_VFLAG_MODCACHE  | ATR_VFLAG_MODIFY;
 			}
@@ -510,6 +511,7 @@ set_resc_assigned(void *pobj, int objtype, enum batch_op op)
 					if (pr == NULL)
 						return;
 				}
+				//log_errf(("updating queru, with %s, op=%d", rscdef->rs_name, op))
 				rscdef->rs_set(&pr->rs_value, &rescp->rs_value, op);
 				queru->at_flags |= ATR_VFLAG_MODCACHE  | ATR_VFLAG_MODIFY;
 			}
@@ -4261,12 +4263,12 @@ account_entity_limit_usages(job *pjob, pbs_queue *pque, attribute *altered_resc,
 {
 	int rc,ret_error = PBSE_NONE;
 
-	if (op == INCR)
+	/* if (op == INCR)
 		log_err(-1, pjob->ji_qs.ji_jobid, "============== Incrementing usages ================");
 	else
 	{
 		log_err(-1, pjob->ji_qs.ji_jobid,"============== Decrementing usages ================");
-	}
+	} */
 	
 
 	/* not doing NULL checks of parameters as this function is currently invoked from sane locations */

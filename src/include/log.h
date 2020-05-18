@@ -80,6 +80,9 @@
 #define	DBPRT(x)	sys_printf x
 #endif
 
+#define	log_printf(...)	log_eventf(PBSEVENT_ERROR, PBS_EVENTCLASS_SERVER, LOG_ERR, __func__, __VA_ARGS__);
+#define log_errf(x) log_printf x
+
 #define IFNAME_MAX 256
 #define IFFAMILY_MAX 16
 
@@ -105,6 +108,7 @@ extern void log_close(int close_msg);
 extern void log_err(int err, const char *func, const char *text);
 extern void log_joberr(int err, const char *func, const char *text, const char *pjid);
 extern void log_event(int type, int objclass, int severity, const char *objname, const char *text);
+extern void log_eventf(int eventtype, int objclass, int sev, const char *objname, const char *fmt, ...);
 extern int will_log_event(int type);
 extern void log_suspect_file(const char *func, const char *text, const char *file, struct stat *sb);
 extern int  log_open(char *name, char *directory);

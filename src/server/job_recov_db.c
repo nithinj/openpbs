@@ -197,9 +197,9 @@ populate_counts(job *pjob, int old_state)
 	pbs_queue	*pque = find_queuebyname(pjob->ji_wattr[JOB_ATR_in_queue].at_val.at_str, 0);
 	int		new_state = pjob->ji_qs.ji_state;
 
-	/*sprintf(log_buffer, "old_state: %d, new_state: %d", old_state, new_state);
+	sprintf(log_buffer, "old_state: %d, new_state: %d", old_state, new_state);
 	log_err(-1, pjob->ji_qs.ji_jobid, log_buffer);
-	*/
+	
 
 	if (old_state == new_state)
 		return;
@@ -212,6 +212,7 @@ populate_counts(job *pjob, int old_state)
 		dealloc_hosts(pjob, pnodespec);
 	} else if (new_state == JOB_STATE_RUNNING) {
 		alloc_hosts(pjob, pnodespec, JOB_OBJECT);
+		 
 		set_resc_assigned((void *)pjob, 0, INCR);
 	}
 
@@ -314,13 +315,16 @@ static int
 db_to_svr_job(job *pjob,  pbs_db_job_info_t *dbjob)
 {
 	int old_state = pjob->ji_qs.ji_state;
+	int old_svrflags = pjob->ji_qs.ji_svrflags;
 
 	/* Variables assigned constant values are not stored in the DB */
 	pjob->ji_qs.ji_jsversion = JSVERSION;
 	strcpy(pjob->ji_qs.ji_jobid, dbjob->ji_jobid);
 	pjob->ji_qs.ji_state = dbjob->ji_state;
 	pjob->ji_qs.ji_substate = dbjob->ji_substate;
-	pjob->ji_qs.ji_svrflags = dbjob->ji_svrflags;
+	/* Do not refresh resc_assn flags as it calculated on the fly */
+	pjob->ji_qs.ji_svrflags = (dbjob->ji_svrflags & ~JOB_SVFLG_RescAssn);
+	pjob->ji_qs.ji_svrflags |= (old_svrflags & JOB_SVFLG_RescAssn);
 	pjob->ji_qs.ji_numattr = dbjob->ji_numattr ;
 	pjob->ji_qs.ji_ordering = dbjob->ji_ordering;
 	pjob->ji_qs.ji_priority = dbjob->ji_priority;

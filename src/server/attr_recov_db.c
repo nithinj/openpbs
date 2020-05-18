@@ -416,8 +416,10 @@ decode_attr_db(
 					if (padef[index].at_decode) {
 						padef[index].at_decode(&tmpa, pal->al_name, pal->al_resc, pal->al_value);
 						padef[index].at_set(&pattr[index], &tmpa, DIFFSET);
-						if (*savetm == '\0' || (pattr[index].at_flags & ATR_VFLAG_FORCE_ACT))
+						if (*savetm == '\0' || (pattr[index].at_flags & ATR_VFLAG_FORCE_ACT)) {
 							padef[index].at_action(&pattr[index], parent, ATR_ACTION_RECOV);
+							pattr[index].at_flags &= ~ATR_VFLAG_FORCE_ACT;
+						}
 						padef[index].at_free(&tmpa);
 					}
 				} else {

@@ -7246,6 +7246,7 @@ adj_resc_on_node(char *noden, int aflag, enum batch_op op, resource_def *prdef, 
 
 	if ((rc = prdef->rs_decode(&tmpattr, ATTR_rescassn, prdef->rs_name, val)) != 0)
 		return rc;
+	log_errf(("updating on node. op=%d , val=%s", op, val))
 	rc = prdef->rs_set(&presc->rs_value, &tmpattr, op);
 	if (op == DECR) {
 		check_for_negative_resource(prdef, &presc->rs_value, noden);
@@ -7285,15 +7286,6 @@ update_job_node_rassn(void *obj, int is_resv, attribute *pexech, enum batch_op o
 	int	  rc;
 	resource_def	*prdef = NULL;
 	struct key_value_pair *pkvp;
-	attribute	*queru = NULL;
-	attribute	*sysru = NULL;
-	resource	*pr = NULL;
-	attribute	tmpattr;
-	int		nchunk = 0;
-	job		*pjob = NULL;
-
-	if (!is_resv)
-		pjob = (job*) obj;
 
 	/* Parse the exec_vnode string */
 
@@ -7301,25 +7293,6 @@ update_job_node_rassn(void *obj, int is_resv, attribute *pexech, enum batch_op o
 		return;
 	}
 
-	if ((pjob != NULL) &&
-		(pexech == &pjob->ji_wattr[(int) JOB_ATR_exec_vnode_deallocated])) {
-		char *pc;
-		sysru = &server.sv_attr[(int)SRV_ATR_resource_assn];
-		queru = &find_queuebyname(pjob->ji_qs.ji_queue, 0)->qu_attr[(int)QE_ATR_ResourceAssn];
-
-		pc = pexech->at_val.at_str;
-		while (*pc != '\0') {
-			/* given exec_vnode format: (<chunk1>+<chunk2>)+(<chunk3), 	*/
-			/* <chunk1> and <chunk2> belong to the same node host,      	*/
-			/* while  <chunk3> belongs to another node host. 		*/
-			/* The number of node host chunks can be determined by # of     */
-			/* left parentheses */
-			if (*pc == '(') {
-				nchunk++;
-			}
-			pc++;
-		}
-	}
 	chunk = parse_plus_spec(pexech->at_val.at_str, &rc);
 	if (rc != 0)
 		return;
@@ -7337,44 +7310,6 @@ update_job_node_rassn(void *obj, int is_resv, attribute *pexech, enum batch_op o
 
 				if ((rc = adj_resc_on_node(noden, asgn, op, prdef, pkvp[j].kv_val, 0)) != 0)
 					return;
-				/* update system attribute of resources assigned */
-
-				if (sysru || queru) {
-					if ((rc = prdef->rs_decode(&tmpattr, ATTR_rescassn, pkvp[j].kv_keyw,
-											pkvp[j].kv_val)) != 0)
-						return;
-				}
-
-				if (sysru) {
-					pr = find_resc_entry(sysru, prdef);
-					if (pr == NULL) {
-						pr = add_resource_entry(sysru, prdef);
-						if (pr == NULL)
-							return;
-					}
-					prdef->rs_set(&pr->rs_value, &tmpattr, op);
-					if (op == DECR) {
-						check_for_negative_resource(prdef, &pr->rs_value, NULL);
-					}
-					sysru->at_flags |= ATR_VFLAG_MODCACHE | ATR_VFLAG_MODIFY;
-				}
-
-				/* update queue attribute of resources assigned */
-
-				if (queru) {
-					pr = find_resc_entry(queru, prdef);
-					if (pr == NULL) {
-						pr = add_resource_entry(queru, prdef);
-						if (pr == NULL)
-							return;
-					}
-					prdef->rs_set(&pr->rs_value, &tmpattr, op);
-					if (op == DECR) {
-						check_for_negative_resource(prdef, &pr->rs_value, NULL);
-					}
-					queru->at_flags |= ATR_VFLAG_MODCACHE | ATR_VFLAG_MODIFY;
-				}
-
 			}
 		} else {
 			return;
@@ -7385,44 +7320,6 @@ update_job_node_rassn(void *obj, int is_resv, attribute *pexech, enum batch_op o
 			return;
 	}
 
-	if (sysru || queru) {
-		/* set pseudo-resource "nodect" to the number of chunks */
-		prdef = find_resc_def(svr_resc_def, "nodect", svr_resc_size);
-		if (prdef == NULL) {
-			return;
-		}
-	}
-	if (sysru) {
-		pr = find_resc_entry(sysru, prdef);
-		if (pr == NULL)
-			pr = add_resource_entry(sysru, prdef);
-		if (pr) {
-
-			if (op == DECR) {
-				pr->rs_value.at_val.at_long -= nchunk;
-				check_for_negative_resource(prdef, &pr->rs_value, NULL);
-			} else {
-				pr->rs_value.at_val.at_long += nchunk;
-			}
-			pr->rs_value.at_flags |= ATR_VFLAG_SET |
-				ATR_VFLAG_DEFLT | ATR_VFLAG_MODCACHE | ATR_VFLAG_MODIFY;
-		}
-	}
-	if (queru) {
-		pr = find_resc_entry(queru, prdef);
-		if (pr == NULL)
-			pr = add_resource_entry(queru, prdef);
-		if (pr) {
-			if (op == DECR) {
-				pr->rs_value.at_val.at_long -= nchunk;
-				check_for_negative_resource(prdef, &pr->rs_value, NULL);
-			} else {
-				pr->rs_value.at_val.at_long += nchunk;
-			}
-			pr->rs_value.at_flags |= ATR_VFLAG_SET |
-				ATR_VFLAG_DEFLT | ATR_VFLAG_MODCACHE | ATR_VFLAG_MODIFY;
-		}
-	}
 	return;
 }
 

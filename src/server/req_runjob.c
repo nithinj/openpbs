@@ -1065,8 +1065,9 @@ svr_strtjob2(job *pjob, struct batch_request *preq)
 		 * in
 		 */
 		if (preq == NULL || (preq->rq_type == PBS_BATCH_AsyrunJob)) {
-			if (pjob->ji_qs.ji_substate == JOB_SUBSTATE_PRERUN)
+			if (pjob->ji_qs.ji_substate == JOB_SUBSTATE_PRERUN) {
 				set_resc_assigned((void *)pjob, 0, INCR);
+			}
 		}
 		return (0);
 	} else {
