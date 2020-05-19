@@ -810,17 +810,19 @@ entlim_replace(const char *keystr, void *recptr, void *ctx,
 			if ((pkey = entlim_create_key(keystr)) == NULL)
 				return -1;
 			svr_entlim_leaf_t *plf = recptr;
-			//plf->slf_rescd->rs_free(&plf->slf_sum);
-			if (((svr_entlim_leaf_t *)olddata)->slf_sum.at_flags & ATR_VFLAG_SET) {
-				plf->slf_rescd->rs_decode(&plf->slf_sum, NULL, NULL, "0");
-				plf->slf_rescd->rs_set(&plf->slf_sum, &((svr_entlim_leaf_t *)olddata)->slf_sum, SET);
+			svr_entlim_leaf_t *plf_old = (svr_entlim_leaf_t *) olddata;
+			if (plf->slf_sum.at_flags & ATR_VFLAG_SET) {
+				plf_old->slf_rescd->rs_decode(&plf_old->slf_sum, NULL, NULL, "0");
+				plf_old->slf_rescd->rs_set(&plf_old->slf_sum, &plf->slf_sum, SET);
 			}
-			pkey->recptr = recptr;
+			pkey->recptr = plf_old;
 			rc = avl_add_key((AVL_IX_REC *)pkey, (AVL_IX_DESC *)ctx);
-			fr_leaf(olddata);
+			fr_leaf(plf);
 		}
-	} else
+	} else {
 		rc = AVL_IX_OK;
+		DBPRT(("Not adding: %s", keystr))
+	}
 	
 	free(pkey);
 	if (rc == AVL_IX_OK)
@@ -925,6 +927,7 @@ set_entlim(attribute *old, attribute *new, enum batch_op op)
 				if (!(((svr_entlim_leaf_t *)pkey->recptr)->slf_limit.at_flags & ATR_VFLAG_SET)) {
 					newptr = dup_svr_entlim_leaf(pkey->recptr);
 					if (newptr) {
+						DBPRT(("Copying %s using entlim_add_replace", pkey->key))
 						if (entlim_add_replace(pkey->key, newptr, tmpctx, svr_freeleaf) > 1) {
 							/* failed to add */
 							svr_freeleaf(newptr);
@@ -941,6 +944,7 @@ set_entlim(attribute *old, attribute *new, enum batch_op op)
 			while ((pkey = entlim_get_next(pkey, oldctx)) != NULL) {
 				/* duplicate the record to be added */
 				newptr = dup_svr_entlim_leaf(pkey->recptr);
+				DBPRT(("Copying %s using entlim_replace", pkey->key))
 				if (newptr) {
 					if (entlim_replace(pkey->key, newptr, newctx, svr_freeleaf) != 0) {
 						/* failed to add */

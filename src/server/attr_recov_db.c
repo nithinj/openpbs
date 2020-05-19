@@ -403,10 +403,11 @@ decode_attr_db(
 		 */
 
 		/* first free the existing attribute value, if any */
-		if (!(padef[index].at_flags & ATR_DFLAG_NOSAVM) && (padef[index].at_type != ATR_TYPE_ENTITY))
+		if (!(padef[index].at_flags & ATR_DFLAG_NOSAVM) && !(padef[index].at_type == ATR_TYPE_ENTITY && palarray[index]))
 				padef[index].at_free(&pattr[index]);
 
 		pal = palarray[index];
+
 		while (pal) {
 			if (!(padef[index].at_flags & ATR_DFLAG_NOSAVM)) { /* dont load NOSAVM attributes, even if set in databae */
 				if ((padef[index].at_type == ATR_TYPE_ENTITY) && (pattr[index].at_flags & ATR_VFLAG_SET)) {
@@ -418,7 +419,6 @@ decode_attr_db(
 						padef[index].at_set(&pattr[index], &tmpa, DIFFSET);
 						if (*savetm == '\0' || (pattr[index].at_flags & ATR_VFLAG_FORCE_ACT)) {
 							padef[index].at_action(&pattr[index], parent, ATR_ACTION_RECOV);
-							pattr[index].at_flags &= ~ATR_VFLAG_FORCE_ACT;
 						}
 						padef[index].at_free(&tmpa);
 					}
@@ -430,6 +430,7 @@ decode_attr_db(
 					}
 				}
 				pattr[index].at_flags = pal->al_flags & ~ATR_VFLAG_MODIFY;
+				pattr[index].at_flags &= ~ATR_VFLAG_FORCE_ACT;
 			}
 
 			tmp_pal = pal->al_sister;

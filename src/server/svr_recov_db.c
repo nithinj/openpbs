@@ -267,6 +267,7 @@ svr_recov_db(int lock)
 		return 0;
 	}
 
+	DBPRT(("svr_recov_db: going to convert attrs"))
 	if (db_to_svr_svr(&server, &dbsvr) != 0)
 		goto db_err;
 
