@@ -4142,7 +4142,7 @@ mom_running_jobs(int stream)
 					exec_host_name[exec_host_hostlen]='\0';
 				}
 
-				if (!strcmp(exec_host_name,mom_name)) {
+				if (!strcmp(exec_host_name, mom_name)) {
 					/* natural vnode of MOM at end of stream matches exec_host first entry */
 
 					snprintf(log_buffer, sizeof(log_buffer), "run_version %ld for job recovered from MOM with vnode %s; exec_host %s", runver, mom_name, exec_host_name);
@@ -4311,7 +4311,7 @@ is_request(int stream, int version)
 			goto badcon;
 
 		log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
-			LOG_NOTICE, pmom->mi_host, "Mom sent hellosvr on host");
+			LOG_NOTICE, pmom->mi_host, "Received IS_HELLOSVR from Mom");
 
 		psvrmom = (mom_svrinfo_t *)(pmom->mi_data);
 		psvrmom->msr_state |= INUSE_UNKNOWN;
@@ -4355,7 +4355,8 @@ is_request(int stream, int version)
 
 		/* we save this stream for future communications */
 		psvrmom->msr_stream = stream;
-		psvrmom->msr_state &= ~INUSE_INIT;
+		psvrmom->msr_state |= INUSE_INIT;
+		psvrmom->msr_state &= ~INUSE_NEEDS_HELLOSVR;
 #ifdef NAS /* localmod 005 */
 		tinsert2((u_long)stream, 0ul, pmom, &streams);
 #else
