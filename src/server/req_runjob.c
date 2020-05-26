@@ -1058,17 +1058,6 @@ svr_strtjob2(job *pjob, struct batch_request *preq)
 		/* Clear the suspend server flag. */
 		pjob->ji_qs.ji_svrflags &= ~JOB_SVFLG_Suspend;
 
-		/* in case of async runjob, we need to assign resources
-		 * since another scheduling cycle can happen before the
-		 * mom responds to the req_commit message. This is the
-		 * same logic that is done for jobs with files to stage
-		 * in
-		 */
-		if (preq == NULL || (preq->rq_type == PBS_BATCH_AsyrunJob)) {
-			if (pjob->ji_qs.ji_substate == JOB_SUBSTATE_PRERUN) {
-				set_resc_assigned((void *)pjob, 0, INCR);
-			}
-		}
 		return (0);
 	} else {
 		log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, LOG_NOTICE,
@@ -1081,6 +1070,7 @@ svr_strtjob2(job *pjob, struct batch_request *preq)
 		else
 			free_nodes(pjob);
 
+		set_resc_assigned((void *)pjob, 0, DECR);
 		clear_exec_on_run_fail(pjob);
 		svr_evaljobstate(pjob, &old_state, &old_subst, 1);
 		(void)svr_setjobstate(pjob, old_state, old_subst);

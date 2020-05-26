@@ -4043,12 +4043,12 @@ set_entity_resc_sum_max(job *pjob, pbs_queue *pque, attribute *altered_resc,
 	/* then just return,  the job's resources were removed from the   */
 	/* entity sums when it went into the MOVED/FINISHED state	  */
 
-	if (((pjob->ji_qs.ji_state == JOB_STATE_MOVED) ||
+	/*if (((pjob->ji_qs.ji_state == JOB_STATE_MOVED) ||
 		(pjob->ji_qs.ji_state == JOB_STATE_EXPIRED) ||
 		(pjob->ji_qs.ji_state == JOB_STATE_FINISHED)) && !pjob->alien_job) {
 		ET_LIM_DBG("exiting, ret 0 [job in %c state]", __func__, statechars[pjob->ji_qs.ji_state])
 		return 0;
-	}
+	}*/
 
 	/* set reverse op incase we have to back up */
 	if (op == INCR)

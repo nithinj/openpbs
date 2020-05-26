@@ -857,8 +857,10 @@ req_stat_node(struct batch_request *preq)
 	if (type == 0) {		/* get status of the named node */
 		rc = status_node(pnode, preq, &preply->brp_un.brp_status);
 
-	} else {			/* get status of all nodes */
-		//get_all_db_jobs(LOADJOB_COUNTS);
+	} else {	/* get status of all nodes */
+		/*if (sched_trx_chk)
+			get_all_db_jobs(LOADJOB_COUNTS);*/
+
 		get_all_db_nodes(NULL);
 		for (i = 0; i < svr_totnodes; i++) {
 			pnode = pbsndlist[i];
@@ -973,6 +975,8 @@ status_node(struct pbsnode *pnode, struct batch_request *preq, pbs_list_head *ps
 
 	if (pnode->nd_attr[(int)ND_ATR_state].at_val.at_long & INUSE_PROV)
 		pnode->nd_attr[(int)ND_ATR_state].at_val.at_long = old_nd_state ;
+
+	log_errf(("cpus: %d", get_ncpu_assn(pnode)))
 
 
 	return (rc);

@@ -348,6 +348,21 @@ get_ncpu_ct(struct pbsnode *pnode)
 	return 0;
 }
 
+int
+get_ncpu_assn(struct pbsnode *pnode)
+{
+	resource_def		*prd;
+	resource		*prc;
+	attribute		*pala;
+
+	pala = &pnode->nd_attr[(int)ND_ATR_ResourceAssn];
+	prd = find_resc_def(svr_resc_def, "ncpus", svr_resc_size);
+	prc = find_resc_entry(pala, prd);
+	if (prc)
+		return prc->rs_value.at_val.at_long;
+	return 0;
+}
+
 
 int
 pre_nodejob_query(struct pbsnode *pnode)

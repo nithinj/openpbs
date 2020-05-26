@@ -83,6 +83,9 @@
 #define	log_printf(...)	log_eventf(PBSEVENT_ERROR, PBS_EVENTCLASS_SERVER, LOG_ERR, __func__, __VA_ARGS__);
 #define log_errf(x) log_printf x
 
+#define	log_print_sc(...)	log_eventf(PBSEVENT_ERROR, PBS_EVENTCLASS_SCHED, LOG_ERR, __func__, __VA_ARGS__);
+#define log_err_sc(x) log_print_sc x
+
 #define IFNAME_MAX 256
 #define IFFAMILY_MAX 16
 

@@ -235,8 +235,9 @@ pg_db_prepare_job_sqls(pbs_db_conn_t *conn)
 			return -1;
 
 	snprintf(conn->conn_sql, MAX_SQL_LENGTH, "select "
-			"ji_jobid,"
-			"ji_state,"
+			"ji_jobid, "
+			"ji_state, "
+			"ji_svrflags, "
 			"to_char(ji_savetm, 'YYYY-MM-DD HH24:MI:SS.US') as ji_savetm, "
 			"hstore_to_array(attributes) as attributes "
 			"from pbs.job where ji_savetm > to_timestamp($1, 'YYYY-MM-DD HH24:MI:SS.US')");
@@ -380,7 +381,7 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 {
 	char db_savetm[DB_TIMESTAMP_LEN + 1];
 	char *raw_array;
-	static int ji_jobid_fnum, ji_state_fnum, ji_savetm_fnum, attributes_fnum;
+	static int ji_jobid_fnum, ji_state_fnum, ji_svrflags_fnum, ji_savetm_fnum, attributes_fnum;
 
 	static int fnums_inited = 0;
 
@@ -388,6 +389,7 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 		/* cache the column numbers of various job table fields */
 		ji_jobid_fnum = PQfnumber(res, "ji_jobid");
 		ji_state_fnum = PQfnumber(res, "ji_state");
+		ji_svrflags_fnum = PQfnumber(res, "ji_svrflags");
 		ji_savetm_fnum = PQfnumber(res, "ji_savetm");
 		attributes_fnum = PQfnumber(res, "attributes");
 
@@ -404,6 +406,7 @@ load_job_partial(const  PGresult *res, pbs_db_job_info_t *pj, int row)
 
 	GET_PARAM_STR(res, row, pj->ji_jobid, ji_jobid_fnum);
 	GET_PARAM_INTEGER(res, row, pj->ji_state, ji_state_fnum);
+	GET_PARAM_INTEGER(res, row, pj->ji_svrflags, ji_svrflags_fnum);
 	GET_PARAM_BIN(res, row, raw_array, attributes_fnum);
 	return (convert_array_to_db_attr_list(raw_array, &pj->attr_list));
 	return 0;

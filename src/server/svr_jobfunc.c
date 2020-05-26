@@ -311,10 +311,6 @@ svr_enquejob(job *pjob)
 		server.sv_jobstates[pjob->ji_qs.ji_state]++;
 	}
 
-	/* Not a new job, nothing more to do!! */
-	if (!(pjob->ji_newjob))
-		return 0;
-
 	/* place into queue in order of queue rank starting at end */
 
 	pjcur = (job *)GET_PRIOR(pque->qu_jobs);
@@ -335,6 +331,10 @@ svr_enquejob(job *pjob)
 		insert_link(&pjcur->ji_jobque, &pjob->ji_jobque, pjob,
 			LINK_INSET_AFTER);
 	}
+
+	/* Not a new job, nothing more to do!! */
+	if (!(pjob->ji_newjob))
+		return 0;
 
 	/* update counts: queue and queue by state */
 	if (pjob->ji_newjob)
@@ -689,6 +689,8 @@ svr_setjobstate(job *pjob, int newstate, int newsubstate)
 			account_entity_limit_usages(pjob, find_queuebyname(pjob->ji_qs.ji_queue, 0), NULL, DECR, ETLIM_ACC_ALL_QUEUED);
 			pjob->ji_etlimit_decr_queued = TRUE;
 		}
+		if (newsubstate == JOB_SUBSTATE_PRERUN)
+			set_resc_assigned((void *)pjob, 0, INCR);
 	}
 
 	if (pjob->ji_modified) {
