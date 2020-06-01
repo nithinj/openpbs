@@ -478,6 +478,7 @@ dis_request_read(int sfds, struct batch_request *request)
 	/* Decode the Request Header, that will tell the request type */
 
 	rc = decode_DIS_ReqHdr(sfds, request, &proto_type, &proto_ver);
+	DBPRT(("sfds=%d", sfds))
 
 	if (rc != 0) {
 		if (rc == DIS_EOF)
@@ -487,6 +488,8 @@ dis_request_read(int sfds, struct batch_request *request)
 			errno, rc);
 		log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_REQUEST, LOG_DEBUG,
 			"?", log_buffer);
+
+		DBPRT(("Req Header bad, errno %d, dis error %d", errno, rc))
 
 		return PBSE_DISPROTO;
 	}

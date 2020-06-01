@@ -122,16 +122,6 @@
 #undef DEBUG
 #endif /* localmod 004 */
 
-#ifdef DEBUG
-#ifdef NAS /* localmod 004 */
-#define DBPRT(x)	fprintf x;
-#else
-#define DBPRT(x)	printf x;
-#endif /* localmod 004 */
-#else
-#define DBPRT(x)
-#endif
-
 #if defined(HAVE_SYS_IOCTL_H)
 #include <sys/ioctl.h>
 #endif /* HAVE_SYS_IOCTL_H */
@@ -2210,11 +2200,6 @@ retry:
 		perror("qsub: accept error");
 		exit_qsub(1);
 	}
-#ifdef NAS /* localmod 004 */
-	DBPRT((stderr, "got connection from %s:%d\n", inet_ntoa(from.sin_addr), (int)ntohs(from.sin_port)))
-#else
-	DBPRT(("got connection from %s:%d\n", inet_ntoa(from.sin_addr), (int)ntohs(from.sin_port)))
-#endif /* localmod 004 */
 
 	/*
 	 * if SIGINT or SIGBREAK interrupt is raised, then child thread win_blockint()
