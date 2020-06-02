@@ -3056,6 +3056,9 @@ close_streams(int stm, int ret)
 	mom_svrinfo_t	*psvrmom;
 	struct	sockaddr_in  *addr;
 
+	if (stm < 0)
+		return;
+
 	strms = tpp_mcast_members(stm, &count);
 
 	for(i = 0; i < count; i++) {
@@ -3111,7 +3114,7 @@ mcast_moms(struct work_task *ptask)
 			if (!mominfo_array[i])
 				continue;
 			psvrmom = (mom_svrinfo_t *)(mominfo_array[i]->mi_data);
-			if (psvrmom->msr_state & INUSE_NEED_ADDRS) {
+			if ((psvrmom->msr_state & INUSE_NEED_ADDRS) && ((mom_svrinfo_t *)(mominfo_array[i]->mi_data))->msr_stream >= 0) {
 				add_mom_mcast(mominfo_array[i], &mtfd);
 				if (psvrmom->msr_state & INUSE_MARKEDDOWN)
 					psvrmom->msr_state &= ~INUSE_MARKEDDOWN;
