@@ -269,7 +269,49 @@ que_purge(pbs_queue *pque)
 
 /**
  * @brief
- * 		find_queuebyname() - find a queue by its name
+ * 		strip_servername - strip the @server part from queue if any.
+ *
+ * @param[in]	quename_in	- input queue name
+ * @param[in]	quename_out	- output queue name
+ *
+ * @return void
+ */
+void
+strip_servername(char *quename_in, char *quename_out) {
+	char *pc;
+
+	strncpy(quename_out, quename_in, PBS_MAXDEST);
+	pc = strchr(quename_out, (int)'@');	/* strip off server (fragment) */
+	if (pc)
+		*pc = '\0';
+}
+
+/**
+ * @brief
+ * 		find_queuebyname() - find a queue by its name from internal cache.
+ *
+ * @param[in]	quename	- queue name
+ *
+ * @return	pbs_queue *
+ */
+pbs_queue *
+find_queue_fromcache(char *qname)
+{
+	pbs_queue *pque;
+
+	for (pque = (pbs_queue *)GET_NEXT(svr_queues);
+		pque != NULL; pque = (pbs_queue *)GET_NEXT(pque->qu_link)) {
+		if (strcmp(qname, pque->qu_qs.qu_name) == 0)
+			break;
+	}
+
+	return pque;
+}
+
+/**
+ * @brief
+ * 		find_queuebyname() - find a queue by its name.
+ * 		load from DB if could not find in cache.
  *
  * @param[in]	quename	- queue name
  *
@@ -279,24 +321,10 @@ que_purge(pbs_queue *pque)
 pbs_queue *
 find_queuebyname(char *quename)
 {
-	char *pc;
-	pbs_queue *pque;
 	char qname[PBS_MAXDEST + 1];
 
-	(void)strncpy(qname, quename, PBS_MAXDEST);
-	qname[PBS_MAXDEST] ='\0';
-	pc = strchr(qname, (int)'@');	/* strip off server (fragment) */
-	if (pc)
-		*pc = '\0';
-	for (pque = (pbs_queue *)GET_NEXT(svr_queues);
-		pque != NULL; pque = (pbs_queue *)GET_NEXT(pque->qu_link)) {
-		if (strcmp(qname, pque->qu_qs.qu_name) == 0)
-			break;
-	}
-	if (pc)
-		*pc = '@';	/* restore '@' server portion */
-
-	return que_recov_db(quename, pque);
+	strip_servername(quename, qname);
+	return que_recov_db(qname, find_queue_fromcache(qname));
 }
 
 /**
@@ -311,23 +339,17 @@ find_queuebyname(char *quename)
 pbs_queue *
 find_resvqueuebyname(char *quename)
 {
-	char *pc;
 	pbs_queue *pque;
 	char qname[PBS_MAXDEST + 1];
 
-	(void)strncpy(qname, quename, PBS_MAXDEST);
-	qname[PBS_MAXDEST] = '\0';
-	pc = strchr(qname, (int)'@');	/* strip off server (fragment) */
-	if (pc)
-		*pc = '\0';
+	strip_servername(quename, qname);
 	for (pque = (pbs_queue *)GET_NEXT(svr_queues);
 		pque != NULL; pque = (pbs_queue *)GET_NEXT(pque->qu_link)) {
 		if (pque->qu_resvp != NULL
 			&& (strcmp(qname, pque->qu_resvp->ri_wattr[(int)RESV_ATR_resv_name].at_val.at_str) == 0))
 			break;
 	}
-	if (pc)
-		*pc = '@';	/* restore '@' server portion */
+
 	return (pque);
 }
 
@@ -343,26 +365,20 @@ find_resvqueuebyname(char *quename)
 resc_resv *
 find_resv_by_quename(char *quename)
 {
-	char *pc;
 	resc_resv *presv = NULL;
 	char qname[PBS_MAXQUEUENAME + 1];
 
 	if (quename == NULL || *quename == '\0')
 		return NULL;
 
-	(void)strncpy(qname, quename, PBS_MAXQUEUENAME);
-	qname[PBS_MAXQUEUENAME] = '\0';
-	pc = strchr(qname, (int)'@');	/* strip off server (fragment) */
-	if (pc)
-		*pc = '\0';
+	strip_servername(quename, qname);
 	presv = (resc_resv *)GET_NEXT(svr_allresvs);
 	while (presv != NULL) {
 		if (strcmp(qname, presv->ri_qp->qu_qs.qu_name) == 0)
 			break;
 		presv = (resc_resv *)GET_NEXT(presv->ri_allresvs);
 	}
-	if (pc)
-		*pc = '@';	/* restore '@' server portion */
+
 	return (presv);
 }
 
@@ -376,11 +392,9 @@ find_resv_by_quename(char *quename)
 pbs_queue *
 get_dfltque(void)
 {
-	pbs_queue *pq = NULL;
-
 	if (server.sv_attr[SRV_ATR_dflt_que].at_flags & ATR_VFLAG_SET)
-		pq = find_queuebyname(server.sv_attr[SRV_ATR_dflt_que].at_val.at_str);
-	return (pq);
+		return find_queuebyname(server.sv_attr[SRV_ATR_dflt_que].at_val.at_str);
+	return NULL;
 }
 
 /**

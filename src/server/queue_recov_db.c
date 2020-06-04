@@ -289,27 +289,13 @@ que_recov_db(char *qname, pbs_queue	*pq)
 pbs_queue *
 recov_queue_cb(pbs_db_obj_info_t *dbobj, int *refreshed) 
 {
-	char  *pc;
 	pbs_queue *pque = NULL;
 	char   qname[PBS_MAXDEST + 1];
-	extern pbs_list_head	svr_queues;
 	pbs_db_que_info_t *dbque = dbobj->pbs_db_un.pbs_db_que;
 
 	*refreshed = 0;
-	(void)strncpy(qname, dbque->qu_name, PBS_MAXDEST);
-	qname[PBS_MAXDEST] ='\0';
-	pc = strchr(qname, (int)'@');	/* strip off server (fragment) */
-	if (pc)
-		*pc = '\0';
 	/* get the old pointer of the queue, if queue is already in memory */
-	pque = (pbs_queue *)GET_NEXT(svr_queues);
-	while (pque != NULL) {
-		if (strcmp(qname, pque->qu_qs.qu_name) == 0)
-			break;
-		pque = (pbs_queue *)GET_NEXT(pque->qu_link);
-	}
-	if (pc)
-		*pc = '@';	/* restore '@' server portion */
+	pque = find_queue_fromcache(qname);
 
 	if (pque) {
 		if (strcmp(dbque->qu_savetm, pque->qu_savetm) != 0) {
