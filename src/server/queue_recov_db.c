@@ -264,9 +264,8 @@ que_recov_db(char *qname, pbs_queue	*pq)
 	if (rc == -2)
 		return pq; /* no change in que, return the same pq */
 
-	if (rc == 0) {
+	if (rc == 0)
 		pq = que_recov_db_spl(pq, &dbque);
-	}
 	
 	free_db_attr_list(&dbque.db_attr_list);
 	free_db_attr_list(&dbque.cache_attr_list);
@@ -290,12 +289,11 @@ pbs_queue *
 recov_queue_cb(pbs_db_obj_info_t *dbobj, int *refreshed) 
 {
 	pbs_queue *pque = NULL;
-	char   qname[PBS_MAXDEST + 1];
 	pbs_db_que_info_t *dbque = dbobj->pbs_db_un.pbs_db_que;
 
 	*refreshed = 0;
 	/* get the old pointer of the queue, if queue is already in memory */
-	pque = find_queue_fromcache(qname);
+	pque = find_queue_fromcache(dbque->qu_name);
 
 	if (pque) {
 		if (strcmp(dbque->qu_savetm, pque->qu_savetm) != 0) {
@@ -306,16 +304,10 @@ recov_queue_cb(pbs_db_obj_info_t *dbobj, int *refreshed)
 
 			*refreshed = 1;
 		}
-	} else {
-		if ((pque = que_recov_db_spl(pque, dbque)) == NULL) /* if job is not in AVL tree, load the job from database */
-			goto err;
-
-		/* que_recov increments sv_numque */
+	} else if ((pque = que_recov_db_spl(pque, dbque)) != NULL) {
+		/* if queue is not in cache, load from database */
 		sprintf(log_buffer, msg_init_recovque, pque->qu_qs.qu_name);
 		log_event(PBSEVENT_SYSTEM | PBSEVENT_ADMIN | PBSEVENT_DEBUG, PBS_EVENTCLASS_SERVER, LOG_INFO, msg_daemonname, log_buffer);
-		if (pque->qu_attr[(int) QE_ATR_ResourceAssn].at_flags & ATR_VFLAG_SET)
-			que_attr_def[(int) QE_ATR_ResourceAssn].at_free(&pque->qu_attr[(int) QE_ATR_ResourceAssn]);
-
 		*refreshed = 1;
 	}
 

@@ -269,7 +269,7 @@ que_purge(pbs_queue *pque)
 
 /**
  * @brief
- * 		strip_servername - strip the @server part from queue if any.
+ * 		searchable_queuename - strip the @server part from queue if any.
  *
  * @param[in]	quename_in	- input queue name
  * @param[in]	quename_out	- output queue name
@@ -277,13 +277,13 @@ que_purge(pbs_queue *pque)
  * @return void
  */
 void
-strip_servername(char *quename_in, char *quename_out) {
-	char *pc;
+searchable_queuename(char *quename_in, char *quename_out) {
+	char *src = quename_in;
+	char *dest = quename_out;
 
-	strncpy(quename_out, quename_in, PBS_MAXDEST);
-	pc = strchr(quename_out, (int)'@');	/* strip off server (fragment) */
-	if (pc)
-		*pc = '\0';
+	while (((src - quename_in) < PBS_MAXDEST) && (*src != '\0') && (*src != '@'))
+		*dest++ = *src++;
+	*dest = '\0';
 }
 
 /**
@@ -313,17 +313,17 @@ find_queue_fromcache(char *qname)
  * 		find_queuebyname() - find a queue by its name.
  * 		load from DB if could not find in cache.
  *
- * @param[in]	quename	- queue name
+ * @param[in]	quename_in	- queue name
  *
  * @return	pbs_queue *
  */
 
 pbs_queue *
-find_queuebyname(char *quename)
+find_queuebyname(char *quename_in)
 {
 	char qname[PBS_MAXDEST + 1];
 
-	strip_servername(quename, qname);
+	searchable_queuename(quename_in, qname);
 	return que_recov_db(qname, find_queue_fromcache(qname));
 }
 
@@ -331,18 +331,18 @@ find_queuebyname(char *quename)
  * @brief
  * 		find_resvqueuebyname() - find a queue by the name of its reservation
  *
- * @param[in]	quename	- queue name.
+ * @param[in]	quename_in	- queue name.
  *
  * @return	pbs_queue *
  */
 
 pbs_queue *
-find_resvqueuebyname(char *quename)
+find_resvqueuebyname(char *quename_in)
 {
 	pbs_queue *pque;
 	char qname[PBS_MAXDEST + 1];
 
-	strip_servername(quename, qname);
+	searchable_queuename(quename_in, qname);
 	for (pque = (pbs_queue *)GET_NEXT(svr_queues);
 		pque != NULL; pque = (pbs_queue *)GET_NEXT(pque->qu_link)) {
 		if (pque->qu_resvp != NULL
@@ -357,21 +357,21 @@ find_resvqueuebyname(char *quename)
  * @brief
  * 		find_resv_by_quename() - find a reservation by the name of its queue
  *
- * @param[in]	quename	- queue name.
+ * @param[in]	quename_in	- queue name.
  *
  * @return	resc_resv *
  */
 
 resc_resv *
-find_resv_by_quename(char *quename)
+find_resv_by_quename(char *quename_in)
 {
 	resc_resv *presv = NULL;
 	char qname[PBS_MAXQUEUENAME + 1];
 
-	if (quename == NULL || *quename == '\0')
+	if (quename_in == NULL || *quename_in == '\0')
 		return NULL;
 
-	strip_servername(quename, qname);
+	searchable_queuename(quename_in, qname);
 	presv = (resc_resv *)GET_NEXT(svr_allresvs);
 	while (presv != NULL) {
 		if (strcmp(qname, presv->ri_qp->qu_qs.qu_name) == 0)
