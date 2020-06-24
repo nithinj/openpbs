@@ -131,28 +131,53 @@ __pbs_selstat(int c, struct attropl *attrib, struct attrl   *rattrib, char *exte
 {
 	struct batch_status *ret = NULL;
 	extern struct batch_status *PBSD_status_get(int c);
+	int i;
+	struct batch_status *next = NULL;
+	struct batch_status *cur = NULL;
+	int num_conf_servers = get_current_servers();
+	multi_conn_t **multi_connection = get_conn_multisvr(c);
 
 	/* initialize the thread context data, if not already initialized */
 	if (pbs_client_thread_init_thread_context() != 0)
 		return NULL;
 
-	/* first verify the attributes, if verification is enabled */
-	if (pbs_verify_attributes(c, PBS_BATCH_SelectJobs, MGR_OBJ_JOB,
-		MGR_CMD_NONE, attrib))
-		return NULL;
 
-	/* lock pthread mutex here for this connection */
-	/* blocking call, waits for mutex release */
-	if (pbs_client_thread_lock_connection(c) != 0)
-		return NULL;
+	for (i = 0; i < num_conf_servers; i++) {
+		if (multi_connection[i]->state != CONN_STATE_CONNECTED)
+			continue;
+
+		c = multi_connection[i]->sd;
+
+		/* first verify the attributes, if verification is enabled */
+		if (pbs_verify_attributes(c, PBS_BATCH_SelectJobs, MGR_OBJ_JOB,
+			MGR_CMD_NONE, attrib))
+			return NULL;
+
+		/* lock pthread mutex here for this connection */
+		/* blocking call, waits for mutex release */
+		if (pbs_client_thread_lock_connection(c) != 0)
+			return NULL;
 
 
-	if (PBSD_select_put(c, PBS_BATCH_SelStat, attrib, rattrib, extend) == 0)
-		ret = PBSD_status_get(c);
+		if (PBSD_select_put(c, PBS_BATCH_SelStat, attrib, rattrib, extend) == 0)
+			next = PBSD_status_get(c);
+		if (next) {
+			if (!ret) {
+				ret = next;
+				cur = next;
+				while (cur->next)
+					cur = cur->next;
+			} else {
+				cur->next = next;
+				while (cur->next)
+					cur = cur->next;
+			}
+		}
 
-	/* unlock the thread lock and update the thread context data */
-	if (pbs_client_thread_unlock_connection(c) != 0)
-		return NULL;
+		/* unlock the thread lock and update the thread context data */
+		if (pbs_client_thread_unlock_connection(c) != 0)
+			return NULL;
+	}
 
 	return ret;
 }

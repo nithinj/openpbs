@@ -560,6 +560,7 @@ main(int argc, char **argv, char **envp) /* qselect */
 		}
 	}
 
+	setenv("PBS_CONF_MULTI", "ENABLED", 1);
 	/*perform needed security library initializations (including none)*/
 	if (CS_client_init() != CS_SUCCESS) {
 		fprintf(stderr, "qselect: unable to initialize security library.\n");

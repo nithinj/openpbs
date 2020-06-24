@@ -87,27 +87,49 @@ __pbs_statnode(int c, char *id, struct attrl *attrib, char *extend)
 struct batch_status *
 __pbs_statvnode(int c, char *id, struct attrl *attrib, char *extend)
 {
-	int                   rc;
-	struct batch_status  *ret = NULL;
+	struct batch_status *ret = NULL;
+	int i;
+	struct batch_status *next = NULL;
+	struct batch_status *cur = NULL;
+	int num_conf_servers = get_current_servers();
+	multi_conn_t **multi_connection = get_conn_multisvr(c);
 
 	/* initialize the thread context data, if not already initialized */
 	if (pbs_client_thread_init_thread_context() != 0)
 		return NULL;
 
-	/* first verify the attributes, if verification is enabled */
-	rc = pbs_verify_attributes(c, PBS_BATCH_StatusNode,
-		MGR_OBJ_NODE, MGR_CMD_NONE, (struct attropl *) attrib);
-	if (rc)
-		return NULL;
+	for (i = 0; i < num_conf_servers; i++) {
+		if (multi_connection[i]->state != CONN_STATE_CONNECTED)
+			continue;
 
-	if (pbs_client_thread_lock_connection(c) != 0)
-		return NULL;
+		c = multi_connection[i]->sd;
 
-	ret = PBSD_status(c, PBS_BATCH_StatusNode, id, attrib, extend);
+		/* first verify the attributes, if verification is enabled */
+		if (pbs_verify_attributes(c, PBS_BATCH_StatusNode,
+			MGR_OBJ_NODE, MGR_CMD_NONE, (struct attropl *) attrib))
+			return NULL;
 
-	/* unlock the thread lock and update the thread context data */
-	if (pbs_client_thread_unlock_connection(c) != 0)
-		return NULL;
+		if (pbs_client_thread_lock_connection(c) != 0)
+			return NULL;
+
+		next = PBSD_status(c, PBS_BATCH_StatusNode, id, attrib, extend);
+		if (next) {
+			if (!ret) {
+				ret = next;
+				cur = next;
+				while (cur->next)
+					cur = cur->next;
+			} else {
+				cur->next = next;
+				while (cur->next)
+					cur = cur->next;
+			}
+		}
+
+		/* unlock the thread lock and update the thread context data */
+		if (pbs_client_thread_unlock_connection(c) != 0)
+			return NULL;
+	}
 
 	return ret;
 }
