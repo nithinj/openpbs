@@ -283,6 +283,65 @@ call_to_process_hooks(struct batch_request *preq, char *hook_msg, size_t msg_len
 	return rc;
 }
 
+int
+need_to_run_elsewhere(struct batch_request *preq)
+{
+	char destination[PBS_MAXSERVERNAME + 1];
+	char *pc;
+
+	if (!preq->rq_extend)
+		return FALSE;
+
+	strncpy(destination, preq->rq_extend, PBS_MAXSERVERNAME);
+	if ((pc = strchr(destination, ':')) != NULL)
+		*pc = '\0';
+	if (strcmp(destination, pbs_conf.pbs_server_name))
+		return TRUE;
+
+	return FALSE;
+}
+
+void
+move_job(struct batch_request *preq, job *pjob)
+{
+	char dest[PBS_MAXHOSTNAME + 1];
+
+	strcpy(dest, preq->rq_ind.rq_run.rq_destin);
+	preq->rq_type = PBS_BATCH_MoveJob;
+	strcpy(preq->rq_ind.rq_move.rq_jid, pjob->ji_qs.ji_jobid);
+	sprintf(preq->rq_ind.rq_move.rq_destin, "%s@%s", pjob->ji_qs.ji_queue, preq->rq_extend);
+	preq->rq_ind.rq_move.run_job = 1;
+	strcpy(preq->rq_ind.rq_move.run_job_dest, dest);
+
+	req_movejob(preq);
+}
+
+void
+run_job(struct batch_request *preq, char *job_id)
+{
+	int err;
+	int connect;
+	char *errmsg;
+	char *destination = preq->rq_extend;
+
+	connect = cnt2server(destination);
+	if (connect <= 0) {
+		log_errf(pbs_errno, __func__, "%s: cannot connect to server %s\n", pbs_server);
+		return;
+	}
+
+	err = pbs_asyrunjob(connect, job_id, destination, NULL);
+	if (err) {
+		errmsg = pbs_geterrmsg(connect);
+		if (errmsg != NULL) {
+			log_errf(pbs_errno, __func__, "msg: %s dest: %s jobid: %s", errmsg, destination, job_id);
+		} else
+			log_errf(pbs_errno, __func__, "Server returned error %d for job %s", pbs_errno, job_id);
+	}
+
+	pbs_disconnect(connect);
+}
+
 /**
  * @brief
  * 		req_runjob - service the Run Job and Asyc Run Job Requests
@@ -325,6 +384,12 @@ req_runjob(struct batch_request *preq)
 	parent = chk_job_request(jid, preq, &jt, NULL);
 	if (parent == NULL)
 		return;		/* note, req_reject already called */
+
+	if (need_to_run_elsewhere(preq)) {
+		move_job(preq, parent);
+		//run_job(preq, jid);
+		return;
+	}
 
 	/* the job must be in an execution queue */
 
