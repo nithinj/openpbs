@@ -450,6 +450,13 @@ start_pbs() {
 	touch ${redhat_subsys_filepath}
     fi
 
+    # Set job_stat_limit
+     ncpus=`${PBS_EXEC}/bin/pbsnodes -av | grep "resources_available.ncpus" | awk '{print $3}' | paste -sd+ | bc`
+     if [ ! -z $ncpus ]; then
+         echo "Setting job_stat_limit to: " $ncpus
+         ${PBS_EXEC}/bin/qmgr -c "s s job_stat_limit=$ncpus"
+     fi
+
     return 0
 }
 
