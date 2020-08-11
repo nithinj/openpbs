@@ -446,7 +446,7 @@ req_deletejob(struct batch_request *preq)
 
 			reply_ack(preq);
 		}
-		chk_array_doneness(parent);
+		chk_array_doneness(parent, 1);
 		return;
 
 	} else if (jt == IS_ARRAY_ArrayJob) {
@@ -583,7 +583,7 @@ req_deletejob(struct batch_request *preq)
 
 	if (--preq->rq_refct == 0) {
 		reply_send(preq);
-		chk_array_doneness(parent);
+		chk_array_doneness(parent, 1);
 	}
 
 	return;
@@ -870,7 +870,7 @@ req_deletejob2(struct batch_request *preq, job *pjob)
 	acct_del_write(pjob->ji_qs.ji_jobid, pjob, preq, 0);
 
 	if ((pjob->ji_qs.ji_svrflags & JOB_SVFLG_ArrayJob) && !forcedel)
-		chk_array_doneness(pjob);
+		chk_array_doneness(pjob, 1);
 	else if (abortjob) {
 		if (pjob->ji_qs.ji_state == JOB_STATE_EXITING)
 			discard_job(pjob, "Forced Delete", 1);

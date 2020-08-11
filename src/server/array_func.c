@@ -402,7 +402,7 @@ update_array_indices_remaining_attr(job *parent)
  *	@return	void
  */
 void
-chk_array_doneness(job *parent)
+chk_array_doneness(job *parent, int force_update)
 {
 	char acctbuf[40];
 	int e;
@@ -453,7 +453,8 @@ chk_array_doneness(job *parent)
 		svr_saveorpurge_finjobhist(parent);
 	} else {
 		/* Before we do a full save of parent, recalculate "JOB_ATR_array_indices_remaining" here*/
-		update_array_indices_remaining_attr(parent);
+		if (force_update)
+			update_array_indices_remaining_attr(parent);
 		job_save_db(parent);
 	}
 }
@@ -506,7 +507,7 @@ update_subjob_state(job *pjob, int newstate)
 		}
 		ptbl->tkm_tbl[pjob->ji_subjindx].trk_substate = pjob->ji_qs.ji_substate;
 	}
-	chk_array_doneness(parent);
+	chk_array_doneness(parent, 0);
 }
 /**
  * @brief

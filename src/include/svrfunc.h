@@ -187,7 +187,7 @@ extern size_t check_for_cred(job *, char **);
 extern void svr_mailowner(job *, int, int, char *);
 extern void svr_mailowner_id(char *, job *, int, int, char *);
 extern char *lastname(char *);
-extern void chk_array_doneness(job *);
+extern void chk_array_doneness(job *, int);
 extern void update_array_indices_remaining_attr(job *);
 extern job *create_subjob(job *, char *, int *);
 extern char *cvt_range(job *, int);
