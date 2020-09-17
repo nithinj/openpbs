@@ -467,6 +467,7 @@ enum mgr_obj {
 #define PBS_MAXQUEUENAME	15		/* max queue name length */
 #define PBS_MAXJOBNAME  	230		/* max job name length */
 #define PBS_MAXSERVERNAME	PBS_MAXHOSTNAME	/* max server name length */
+#define MAX_SVR_ID (PBS_MAXSERVERNAME + 6)	/* max server name + port */
 #define PBS_MAXSEQNUM		12		/* max sequence number length */
 #define PBS_DFLT_MAX_JOB_SEQUENCE_ID 9999999	/* default value of max_job_sequence_id server attribute */
 #define PBS_MAXPORTNUM	5		/* udp/tcp port numbers max=16 bits */
@@ -556,6 +557,18 @@ typedef struct preempt_job_info {
         char	job_id[PBS_MAXSVRJOBID + 1];
         char	order[PREEMPT_METHOD_HIGH + 1];
 } preempt_job_info;
+
+typedef struct svr_conn {
+	int sd;                      /* File descriptor for the open socket */
+	int secondary_sd;            /* Secondary File descriptor for the open socket */
+	int state;                   /* Connection state */
+	time_t state_change_time;    /* Connnetion state change time */
+	time_t last_used_time;       /* Last used time for the connection */
+	char svr_id[MAX_SVR_ID];     /* svr_id of the form server_name:port */
+	char name[PBS_MAXHOSTNAME];  /* server name */
+	int port;                    /* server port */
+	int from_sched;              /* flag to indicate whether this conn is from sched or not */
+} svr_conn_t;
 
 /* Resource Reservation Information */
 typedef int	pbs_resource_t;	/* resource reservation handle */
