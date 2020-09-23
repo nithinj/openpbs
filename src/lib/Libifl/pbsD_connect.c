@@ -418,21 +418,20 @@ get_conn_servers(void)
 static int
 connect_to_server(int idx, svr_conn_t *conn_arr, char *extend_data)
 {
-	if (conn_arr[idx].state != SVR_CONN_STATE_UP) {
-		int sd;
+	int sd = conn_arr[idx].sd;
 
+	if (conn_arr[idx].state != SVR_CONN_STATE_UP || conn_arr[idx].secondary_sd < 0) {
 		if ((sd = tcp_connect(conn_arr[idx].name, conn_arr[idx].port, extend_data)) != -1) {
 			conn_arr[idx].state = SVR_CONN_STATE_UP;
 			if (conn_arr[idx].sd > 0 && conn_arr[idx].secondary_sd < 0)
 				conn_arr[idx].secondary_sd = sd;
 			else
 				conn_arr[idx].sd = sd;
-		}
-		else
+		} else
 			conn_arr[idx].state = SVR_CONN_STATE_DOWN;
 	}
 
-	return conn_arr[idx].sd;
+	return sd;
 }
 
 /**
