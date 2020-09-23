@@ -2495,3 +2495,15 @@ rand_num(void)
 
 	return rand();
 }
+
+/**
+ * @brief
+ * 	Return multiserver mode
+ *
+ * @return int
+ */
+int
+msvr_mode(void)
+{
+	return (get_num_servers() > 1);
+}

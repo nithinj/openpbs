@@ -80,6 +80,7 @@ static void states();
 static char *	cvtResvstate(char *);
 static int cmp_est_time(struct batch_status *a, struct batch_status *b);
 char *cnvt_est_start_time(char *start_time, int shortform);
+static void show_svr_inst_fail();
 
 
 #if !defined(PBS_NO_POSIX_VIOLATION)
@@ -804,7 +805,31 @@ altdsp_statjob(struct batch_status *pstat, struct batch_status *prtheader, int a
 		pstat = bs_isort(pstat, cmp_est_time);
 
 	if (prtheader) {
-		printf("\n%s: ", prtheader->name);
+		svr_conn_t *svr_connections = get_conn_servers();
+		int num_cfg_svrs = get_num_servers();
+		int num_active_svrs = 0;
+		int i = 0;
+		int j = 0;
+		
+		if (msvr_mode() && svr_connections) {
+			for (i = 0; i < num_cfg_svrs; i++) {
+				if (svr_connections[i].state == SVR_CONN_STATE_UP)
+					num_active_svrs++;	
+			}
+			printf("\n");
+			for (i = 0; i < num_cfg_svrs; i++) {
+				if (svr_connections[i].state == SVR_CONN_STATE_UP) {
+					printf("%s", pbs_conf.psi[i].name);
+					if (j  == num_active_svrs - 1)
+						printf(": ");
+					else
+						printf(", ");
+					j++;
+				}
+			}
+		} else
+			printf("\n%s: ", prtheader->name);
+
 		pc = get_attr(prtheader->attribs, ATTR_comment, NULL);
 		if (pc)
 			printf("%s", show_nonprint_chars(pc));
@@ -2794,6 +2819,7 @@ qstat -B [-f] [-F format] [-D delim] [ server_name... ]\n";
 
 		pbs_strncpy(operand, argv[optind], sizeof(operand));
 		tcl_addarg(ops, operand);
+
 		switch (mode) {
 
 			case JOBS:      /* get status of batch jobs */
@@ -2904,6 +2930,8 @@ job_no_args:
 					any_failed = connect;
 					break;
 				}
+				show_svr_inst_fail();
+				
 				if (strcmp(pbs_server, server_old) != 0) {
 					/* changing to a different server */
 					p_server = pbs_statserver(connect, NULL, NULL);
@@ -2976,7 +3004,7 @@ job_no_args:
 #else
 						(void)tcl_stat("job", NULL, f_opt);
 #endif /* localmod 071 */
-						if (pbs_errno != PBSE_NONE && pbs_errno != PBSE_HISTJOBID) {
+						if (pbs_errno != PBSE_NONE && pbs_errno != PBSE_HISTJOBID && pbs_errno != PBSE_NOSERVER) {
 							if (pbs_errno == PBSE_ATTRRO && alt_opt & ALT_DISPLAY_T)
 								fprintf(stderr, "qstat: -T option is unavailable.\n");
 							else
@@ -3089,7 +3117,7 @@ que_no_args:
 				}
 				p_status = pbs_statque(connect, queue_name_out, NULL, NULL);
 				if (p_status == NULL) {
-					if (pbs_errno) {
+					if (pbs_errno && (pbs_errno != PBSE_NOSERVER)) {
 						errmsg = pbs_geterrmsg(connect);
 						if (errmsg != NULL) {
 							fprintf(stderr, "qstat: %s ", errmsg);
@@ -3137,7 +3165,7 @@ svr_no_args:
 				}
 				p_status = pbs_statserver(connect, NULL, NULL);
 				if (p_status == NULL) {
-					if (pbs_errno) {
+					if (pbs_errno && (pbs_errno != PBSE_NOSERVER)) {
 						errmsg = pbs_geterrmsg(connect);
 						if (errmsg != NULL) {
 							fprintf(stderr, "qstat: %s ", errmsg);
@@ -3406,4 +3434,22 @@ cnvt_est_start_time(char *est_time, int wide)
 	}
 
 	return timebuf;
+}
+
+/**
+ * @brief used to display server instance failures in case of  MULTI_SERVER
+ * 
+ * @return void
+ */
+static void
+show_svr_inst_fail()
+{
+	if (msvr_mode()) {
+		int i;
+		svr_conn_t *svr_connections = get_conn_servers();
+		for (i = 0; i < get_num_servers(); i++) {
+			if (svr_connections[i].state != SVR_CONN_STATE_UP)
+				fprintf(stderr, "qstat: cannot connect to server %s\n", pbs_conf.psi[i].name);
+		}
+	}
 }

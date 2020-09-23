@@ -56,6 +56,7 @@
 #include "pbs_ecl.h"
 #include "pbs_error.h"
 #include "pbs_nodes.h"
+#include "libpbs.h"
 
 /**
  * @brief
@@ -162,4 +163,53 @@ pbs_verify_object_name(int type, char *name)
 	}
 
 	return 0;
+}
+
+/**
+ * @brief
+ *	Wrapper function for pbs_verify_attributes. Even if one server is down it contacts another
+ *	server for the verification of attributes.
+ *
+ * @see verify_attributes
+ *
+ * @param[in]	batch_request	-	Batch Request Type
+ * @param[in]	parent_object	-	Parent Object Type
+ * @param[in]	cmd		-	Command Type
+ * @param[in]	attribute_list	-	list of attributes
+ *
+ * @return	int
+ * @retval 	0 - No failed attributes
+ * @retval 	+n - Number of failed attributes (pbs_errno set to last error)
+ * @retval 	-1 - System error verifying attributes (pbs_errno is set)
+ *
+ * @par		Side effects:
+ *		Modifies the TLS data for this thread\n
+ *		pbs_errno is set on encourtering error
+ *
+ * @par MT-safe: Yes
+ */
+int
+pbs_verify_attributes_wrapper(int batch_request,int parent_object, int cmd, struct attropl *attribute_list)
+{
+	int i;
+	int rc = 0;
+	svr_conn_t *svr_connections = get_conn_servers();
+	int num_cfg_svrs = get_num_servers();
+
+	if (!svr_connections)
+		return (pbs_errno = PBSE_NOSERVER);
+
+	for (i = 0; i < num_cfg_svrs; i++) {
+		if (svr_connections[i].state != SVR_CONN_STATE_UP) {
+			rc = PBSE_NOSERVER;
+			continue;
+		}
+		/* now verify the attributes, if verification is enabled */
+		if ((rc = pbs_verify_attributes(svr_connections[i].sd, batch_request, parent_object, cmd, attribute_list)))
+			return rc;
+		else
+			return 0;
+	}
+
+	return rc;
 }

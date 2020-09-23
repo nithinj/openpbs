@@ -343,7 +343,8 @@ extern unsigned long crc_file(char *fname);
 extern int get_fullhostname(char *, char *, int);
 extern int get_msvr_mode(void);
 extern char *parse_servername(char *, unsigned int *);
-int rand_num(void);
+extern int rand_num(void);
+extern int msvr_mode(void);
 
 #ifdef _USRDLL
 #ifdef DLL_EXPORT
