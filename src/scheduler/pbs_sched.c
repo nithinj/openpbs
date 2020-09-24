@@ -1377,8 +1377,11 @@ main(int argc, char *argv[])
 			 * we should go to the next block of code.
 			 */
 			accept_svr_conn(&max_sd, &num_connected_svrs);
-			if (num_connected_svrs != get_num_servers())
-				continue;
+		}
+
+		if (num_connected_svrs != get_num_servers()) {
+			sleep(1); /* To give some timefor other server to come up */
+			continue;
 		}
 
 		if (schedule_wrapper(&read_fdset, opt_no_restart, &num_connected_svrs) == 1)
