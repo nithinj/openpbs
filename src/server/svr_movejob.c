@@ -630,10 +630,10 @@ send_job_exec(job *jobp, pbs_net_t hostaddr, int port, int move_type, struct bat
 	}
 
 	if (move_type == MOVE_TYPE_Move_Run) {
-		if (PBSD_commit_and_run(stream, job_id, PROT_TPP, &dup_msgid, request->rq_ind.rq_move.run_exec_vnode) != 0)
+		if (PBSD_commit(stream, job_id, PROT_TPP, &dup_msgid, request->rq_ind.rq_move.run_exec_vnode) != 0)
 			goto send_err;
 	} else {
-		if (PBSD_commit(stream, job_id, PROT_TPP, &dup_msgid) != 0)
+		if (PBSD_commit(stream, job_id, PROT_TPP, &dup_msgid, NULL) != 0)
 			goto send_err;
 	}
 
@@ -960,9 +960,9 @@ send_job(job *jobp, pbs_net_t hostaddr, int port, int move_type,
 		}
 
 		if (move_type == MOVE_TYPE_Move_Run)
-			ret = PBSD_commit_and_run(con, job_id, PROT_TCP, NULL, preq->rq_ind.rq_move.run_exec_vnode);
+			ret = PBSD_commit(con, job_id, PROT_TCP, NULL, preq->rq_ind.rq_move.run_exec_vnode);
 		else
-			ret = PBSD_commit(con, job_id, PROT_TCP, NULL);
+			ret = PBSD_commit(con, job_id, PROT_TCP, NULL, NULL);
 
 		if (ret != 0) {
 			/* delete the temp script file */

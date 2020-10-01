@@ -90,6 +90,7 @@ struct mominfo {
 	int		mi_num_action; /* # of hook actions in mi_action */
 };
 typedef struct mominfo mominfo_t;
+typedef struct mominfo svrinfo_t;
 
 /*
  * The following structure is used by the Server for each Mom.

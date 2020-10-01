@@ -75,7 +75,7 @@ get_peersvr(struct sockaddr_in *addr)
 
 struct peersvr_list {
 	struct peersvr_list *next;
-	mominfo_t  *pmom;
+	svrinfo_t  *pmom;
 };
 typedef struct peersvr_list peersvr_list_t;
 

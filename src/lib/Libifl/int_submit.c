@@ -242,27 +242,7 @@ PBSD_rdytocmt(int c, char *jobid, int prot, char **msgid)
  *
  */
 int
-PBSD_commit(int c, char *jobid, int prot, char **msgid)
-{
-	return PBSD_commit_and_run(c, jobid, prot, msgid, NULL);
-}
-
-/**
- * @brief
- *	-PBS_commit.c This function does the Commit sub-function of
- *	the Queue Job request.
- *
- * @param[in] c - socket fd
- * @param[in] jobid - job identifier
- * @param[in] dest - destination execvnode
- *
- * @return      int
- * @retval      0               success
- * @retval      !0(pbs_errno)   failure
- *
- */
-int
-PBSD_commit_and_run(int c, char *jobid, int prot, char **msgid, char *dest)
+PBSD_commit(int c, char *jobid, int prot, char **msgid, char *dest)
 {
 	struct batch_reply *reply;
 	int rc;
@@ -302,6 +282,7 @@ PBSD_commit_and_run(int c, char *jobid, int prot, char **msgid, char *dest)
 
 	return get_conn_errno(c);
 }
+
 
 /**
  * @brief

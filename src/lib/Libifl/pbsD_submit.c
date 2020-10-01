@@ -252,7 +252,7 @@ __pbs_submit(int c, struct attropl  *attrib, char *script, char *destination, ch
 		}
 	}
 
-	if (PBSD_commit(c, return_jobid, 0, NULL) != 0)
+	if (PBSD_commit(c, return_jobid, 0, NULL, NULL) != 0)
 		goto error;
 
 error:
