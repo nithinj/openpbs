@@ -118,6 +118,7 @@ typedef unsigned long pbs_net_t;        /* for holding host addresses */
 #define IS_HOOK_CHECKSUMS               20 /* mom reports about hooks seen */
 #define IS_UPDATE_FROM_HOOK2            21 /* request to update vnodes from a hook running on a parent mom host or an allowed non-parent mom host */
 #define IS_HELLOSVR                     22 /* hello send to server from mom to initiate a hello sequence */
+#define IS_PEERSVR_CONNECT                23 /* hello from peer server  */
 
 /* return codes for client_to_svr() */
 

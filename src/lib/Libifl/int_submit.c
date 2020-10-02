@@ -235,6 +235,7 @@ PBSD_rdytocmt(int c, char *jobid, int prot, char **msgid)
  * @param[in] jobid - job identifier
  * @param[in] prot - PROT_TCP or PROT_TPP
  * @param[in] msgid - message id
+ * @param[in] dest - exec_vnode if the job needs to be run
  *
  * @return      int
  * @retval      0               success

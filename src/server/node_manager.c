@@ -4316,12 +4316,23 @@ is_request(int stream, int version)
 		}
 		return;
 
+	} else if (command == IS_PEERSVR_CONNECT) {
+		if ((pmom = get_peersvr(addr)) == NULL) {
+			log_eventf(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, LOG_INFO, __func__, 
+					"Peer server connected from %s", netaddr(addr));
+			addr->sin_addr.s_addr = ntohl(addr->sin_addr.s_addr);
+			addr->sin_port = ntohs(addr->sin_port);
+			if ((pmom = create_svr_struct(addr))) {
+				tinsert2((u_long)stream, 0ul, pmom, &streams);
+			}
+		}
+		tpp_eom(stream);
+		return;
+		
 	} else {
-		/* check that machine is known */
-		DBPRT(("%s: connect from %s\n", __func__, netaddr(addr)))
-		if ((pmom = get_peersvr(addr)) != NULL)
-			goto found;
 		if ((pmom = tfind2((u_long)stream, 0, &streams)) != NULL)
+			goto found;
+		if ((command == IS_CMD) && (pmom = get_peersvr(addr)) != NULL)
 			goto found;
 	}
 

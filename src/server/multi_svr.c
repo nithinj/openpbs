@@ -40,10 +40,12 @@
 /**
  *
  * @brief
- *		all the functions related to multi-server.
+ *		all the functions to handle peer server in case of multi-server.
  *
  */
 
+#include	<netdb.h>
+#include	<arpa/inet.h>
 #include	"pbs_nodes.h"
 #include	"pbs_error.h"
 #include	"server.h"
@@ -58,7 +60,25 @@ extern uint	pbs_server_port_dis;
 extern mominfo_t* create_svrmom_struct(char *phost, int port);
 
 
+struct peersvr_list {
+	struct peersvr_list *next;
+	svrinfo_t  *psvr;
+};
+typedef struct peersvr_list peersvr_list_t;
 
+static struct peersvr_list *peersvrl;
+
+
+/**
+ * @brief
+ *	Get the peer server structure corresponding to the addr
+ *
+ * @param[in]	addr	- addr contains ip and port
+ *
+ * @return	svrinfo_t
+ * @retval	NULL	- Could not find peer server corresponing to the addr
+ * @retval	!NULL	- Success
+ */
 void *
 get_peersvr(struct sockaddr_in *addr)
 {
@@ -73,37 +93,41 @@ get_peersvr(struct sockaddr_in *addr)
 	return NULL;
 }
 
-struct peersvr_list {
-	struct peersvr_list *next;
-	svrinfo_t  *pmom;
-};
-typedef struct peersvr_list peersvr_list_t;
-
-static struct peersvr_list *peersvrl;
-
+/**
+ * @brief
+ *	Create a peer server entry, 
+ *	fill in structure and add to peer svr list
+ *
+ * @param[in]	hostname	- hostname of peer server
+ * @param[in]	port		- port of peer server service
+ *
+ * @return	svrinfo_t
+ * @retval	NULL	- Failure
+ * @retval	!NULL	- Success
+ */
 void *
 create_svr_entry(char *hostname, unsigned int port)
 {
-	mominfo_t *pmom = NULL;
+	svrinfo_t *psvr = NULL;
 
-	pmom = (mominfo_t *) malloc(sizeof(mominfo_t));
-	if (!pmom)
+	psvr = (svrinfo_t *) malloc(sizeof(svrinfo_t));
+	if (!psvr)
 		goto err;
 
-	strncpy(pmom->mi_host, hostname, PBS_MAXHOSTNAME);
-	pmom->mi_host[PBS_MAXHOSTNAME] = '\0';
-	pmom->mi_port = port;
-	pmom->mi_rmport = port;
-	pmom->mi_modtime = (time_t) 0;
-	pmom->mi_data = NULL;
-	pmom->mi_action = NULL;
-	pmom->mi_num_action = 0;
+	strncpy(psvr->mi_host, hostname, PBS_MAXHOSTNAME);
+	psvr->mi_host[PBS_MAXHOSTNAME] = '\0';
+	psvr->mi_port = port;
+	psvr->mi_rmport = port;
+	psvr->mi_modtime = (time_t) 0;
+	psvr->mi_data = NULL;
+	psvr->mi_action = NULL;
+	psvr->mi_num_action = 0;
 
 	if (peersvrl) {
 		peersvr_list_t *tmp = calloc(1, sizeof(peersvr_list_t));
 		if (!tmp)
 			goto err;
-		tmp->pmom = pmom;
+		tmp->psvr = psvr;
 		peersvr_list_t *itr;
 		for (itr = peersvrl; itr->next; itr = itr->next)
 			;
@@ -112,34 +136,148 @@ create_svr_entry(char *hostname, unsigned int port)
 		peersvrl = calloc(1, sizeof(peersvr_list_t));
 		if (!peersvrl)
 			goto err;
-		peersvrl->pmom = pmom;
+		peersvrl->psvr = psvr;
 	}
 
-	return pmom;
+	return psvr;
 
 err:
 	log_errf(PBSE_SYSTEM, __func__, "malloc/calloc failed");
-	return pmom;
+	return psvr;
 }
 
+/**
+ * @brief
+ *	Get hostname corresponding to the addr passed
+ *
+ *  @param[in]	addr	- addr contains ip and port
+ * @param[in]	port	- port of peer server service
+ *
+ * @return	host name
+ * @retval	NULL	- Failure
+ * @retval	!NULL	- Success
+ */
+static char *
+get_hostname_from_addr(struct in_addr addr)
+{
+	struct hostent *hp;
+
+	addr.s_addr = htonl(addr.s_addr);
+	hp = gethostbyaddr((void *)&addr, sizeof(struct in_addr), AF_INET);
+	if (hp == NULL) {
+		sprintf(log_buffer, "%s: h_errno=%d",
+			inet_ntoa(addr), h_errno);
+		log_err(-1, __func__, log_buffer);
+		return NULL;
+	}
+
+	return hp->h_name;
+}
+
+/**
+ * @brief
+ *	Create server struct from addr passed as input.
+ *	
+ *
+ *  @param[in]	addr	- addr contains ip and port
+ *
+ * @return	svrinfo_t
+ * @retval	NULL	- Failure
+ * @retval	!NULL	- Success
+ */
+void *
+create_svr_struct(struct sockaddr_in *addr)
+{
+	char *hostname;
+	svrinfo_t *psvr = NULL;
+
+	if ((hostname = get_hostname_from_addr(addr->sin_addr))) {
+		if ((psvr = create_svrmom_struct(hostname, addr->sin_port)) == NULL) {
+			log_errf(-1, __func__, "Failed initialization for peer server %s", hostname);
+			return NULL;
+		}
+	}
+
+	return psvr;
+}
+
+/**
+ * @brief
+ *	Send hello to peer server
+ *	
+ *  @param[in]	psvr	- server structure
+ *
+ * @return	int
+ * @retval	0	- success
+ * @retval	-1	- failure
+ */
+int
+send_hello(svrinfo_t *psvr)
+{
+	int rc;
+	int stream = ((mom_svrinfo_t *)(psvr->mi_data))->msr_stream;
+
+	if ((rc = is_compose(stream, IS_PEERSVR_CONNECT)) != DIS_SUCCESS)
+		goto err;
+
+	if ((rc = dis_flush(stream)) != DIS_SUCCESS)
+		goto err;
+
+	log_eventf(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, LOG_NOTICE,
+		msg_daemonname, "HELLO sent to peer server %s at stream:%d", psvr->mi_host, stream);
+	return 0;
+
+err:
+	log_errf(errno, msg_daemonname, "Failed to send HELLO to peer server %s at stream:%d", psvr->mi_host, stream);
+	tpp_close(stream);
+	return -1;
+}
+
+/**
+ * @brief
+ *	Connect to peer server
+ *	
+ *  @param[in]	hostaddr	- host address of peer server
+ *  @param[in]	port		- port of peer server service
+ *
+ * @return	svrinfo_t
+ * @retval	NULL	- Failure
+ * @retval	!NULL	- Success
+ */
+void *
+connect_2_peersvr(pbs_net_t hostaddr, uint port)
+{
+	struct sockaddr_in addr;
+	svrinfo_t *psvr;
+
+	addr.sin_addr.s_addr = hostaddr;
+	addr.sin_port = port;
+	psvr = create_svr_struct(&addr);
+	if (open_tppstream(psvr) < 0) {
+		delete_svrmom_entry(psvr);
+		return NULL;
+	}
+
+	if (send_hello(psvr) < 0) {
+		delete_svrmom_entry(psvr);
+		return NULL;
+	}
+
+	return psvr;
+}
+
+/**
+ * @brief
+ *	initialize multi server instances
+ *
+ * @return	int
+ * @retval	!0	- Failure
+ * @retval	0	- Success
+ */
 int
 init_msi()
 {
-	int i;
-
 	peersvrl = NULL;
-
-	for (i = 0; i < get_num_servers(); i++) {
-
-		if (!strcmp(pbs_conf.psi[i].name, pbs_conf.pbs_server_name) &&
-		    (pbs_conf.psi[i].port == pbs_server_port_dis))
-			continue;
-
-		if (create_svrmom_struct(pbs_conf.psi[i].name, pbs_conf.psi[i].port) == NULL) {
-			log_errf(-1, __func__, "Failed initialization for %s", pbs_conf.psi[i].name);
-			return -1;
-		}
-	}
 
 	return 0;
 }
@@ -217,8 +355,8 @@ mcast_resc_usage(char *jobid, char *selectspec, int op)
 	char *msgid = NULL;
 
 	for (itr = peersvrl; itr; itr = itr->next) {
-		open_momstream(itr->pmom);
-		add_mom_mcast(itr->pmom, &mtfd);
+		open_tppstream(itr->psvr);
+		add_mom_mcast(itr->psvr, &mtfd);
 	}
 
 	if (mtfd != -1) {

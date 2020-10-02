@@ -465,7 +465,7 @@ extern int		create_vmap(void **);
 extern void		destroy_vmap(void *);
 extern mominfo_t	*find_vmapent_byID(void *, const char *);
 extern int		add_vmapent_byID(void *, const char *, void *);
-extern  int		open_momstream(mominfo_t *);
+extern  int		open_tppstream(mominfo_t *);
 extern void		add_mom_mcast(mominfo_t *, int *);
 
 #ifdef	__cplusplus

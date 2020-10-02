@@ -86,7 +86,7 @@ main(int argc, char **argv)
 	char *dest = NULL;
 	extern char *optarg;
 
-	static char opts[] = "H:a:D:";     /* See man getopt */
+	static char opts[] = "H:aD:";     /* See man getopt */
 	static char *usage = "Usage: qrun [-a] [-H vnode_specification ] job_identifier_list\n"
 			     "       qrun [-a] [-H - ] job_identifier_list\n"
 			     "       qrun --version\n";

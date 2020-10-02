@@ -314,7 +314,8 @@ find_mom_entry(char *hostname, unsigned int port)
 /**
  * @brief
  * 		create_svrmom_entry - create both a mominfo entry and the mom_svrinfo
- *		entry associated with it.
+ *		entry associated with it. 
+ *		Also used as a peer server structure for multi-server.
  * @par Functionality:
  *		Finds an existing mominfo_t structure for the hostname/port tuple,
  *		create mominfo_t and associated mom_svrinfo_t structures; and array
@@ -329,6 +330,7 @@ find_mom_entry(char *hostname, unsigned int port)
  * @param[in]	port     - port number to which Mom will be listening
  * @param[in]	pul      - list of IP addresses of host; will be freed on error
  *			   				or saved in structure; caller must not free pul
+ * @param[in]	is_peer_svr	- Peer server or mom
  *
  * @return	mominfo_t *
  * @retval	pointer to the created mominfo entry	- success
@@ -341,13 +343,13 @@ find_mom_entry(char *hostname, unsigned int port)
  */
 
 mominfo_t *
-create_svrmom_entry(char *hostname, unsigned int port, unsigned long *pul, int peer_svr)
+create_svrmom_entry(char *hostname, unsigned int port, unsigned long *pul, int is_peer_svr)
 {
 	mominfo_t     *pmom;
 	mom_svrinfo_t *psvrmom;
 	extern struct tree  *ipaddrs;
 
-	if (peer_svr)
+	if (is_peer_svr)
 		pmom = create_svr_entry(hostname, port);
 	else
 		pmom = create_mom_entry(hostname, port);
@@ -405,9 +407,9 @@ create_svrmom_entry(char *hostname, unsigned int port, unsigned long *pul, int p
 }
 
 mominfo_t*
-create_svrmom_struct(char *phost, int port)
+create_svrmom_struct(char *phost, uint port)
 {
-	u_long		*pul = NULL;
+	u_long	*pul = NULL;
 	mominfo_t *pmom;
 
 	if (make_host_addresses_list(phost, &pul)) {
@@ -422,7 +424,7 @@ create_svrmom_struct(char *phost, int port)
 
 /**
  * @brief
- * 		open_momstream - do an tpp_open if it is safe to do so.
+ * 		open_tppstream - do an tpp_open if it is safe to do so.
  *
  * @param[in]	pmom	- pointer to mominfo structure
  *
@@ -431,7 +433,7 @@ create_svrmom_struct(char *phost, int port)
  * @retval	>=0: success
  */
 int
-open_momstream(mominfo_t *pmom)
+open_tppstream(mominfo_t *pmom)
 {
 	int stream = -1;
 	mom_svrinfo_t *psvrmom;

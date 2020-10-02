@@ -190,6 +190,8 @@ extern void			memory_debug_log(struct work_task *ptask);
 extern void *	get_peersvr(struct sockaddr_in*);
 extern void *	create_svr_entry(char *, unsigned int);
 extern int	init_msi();
+extern void *	create_svr_struct(struct sockaddr_in *);
+extern void *	connect_2_peersvr(pbs_net_t, uint);
 
 #ifdef	__cplusplus
 }
