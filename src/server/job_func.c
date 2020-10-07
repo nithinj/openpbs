@@ -2252,8 +2252,7 @@ setup_cpyfiles(struct batch_request *preq, job  *pjob, char *from, char *to, int
 		strcpy(prq_jobid, pjob->ji_qs.ji_jobid);
 		get_jobowner(get_jattr_str(pjob, JOB_ATR_job_owner), prq_owner);
 		get_jobowner(get_jattr_str(pjob, JOB_ATR_euser), prq_user);
-		if ((pjob->ji_wattr[JOB_ATR_egroup].at_flags & ATR_VFLAG_DEFLT) == 0 &&
-			get_jattr_str(pjob, JOB_ATR_egroup) != 0)
+		if (is_jattr_set(pjob, JOB_ATR_egroup) && get_jattr_str(pjob, JOB_ATR_egroup))
 			strcpy(prq_group, get_jattr_str(pjob, JOB_ATR_egroup));
 		else
 			prq_group[0] = '\0';	/* default: use login group */
@@ -2355,8 +2354,7 @@ cpy_stdfile(struct batch_request *preq, job *pjob, enum job_atr ati)
 	char *to = NULL;
 
 	/* if the job is interactive, don't bother to return output file */
-
-	if (pjob->ji_wattr[JOB_ATR_interactive].at_flags && get_jattr_long(pjob, JOB_ATR_interactive))
+	if (is_jattr_set(pjob, JOB_ATR_interactive) && get_jattr_long(pjob, JOB_ATR_interactive))
 		return NULL;
 
 	/* set up depending on which file */

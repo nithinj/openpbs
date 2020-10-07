@@ -230,10 +230,19 @@ get_jattr_usr_encoded(const job *pjob, int attr_idx)
 svrattrl *
 get_jattr_priv_encoded(const job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
+	if (pjob)
 		return pjob->ji_wattr[attr_idx].at_priv_encoded;
 
 	return NULL;
+}
+
+int
+get_attr_flag(const job *pjob, int attr_idx)
+{
+	if (pjob)
+		return pjob->ji_wattr[attr_idx].at_flags;
+
+	return 0;
 }
 
 /**
@@ -247,7 +256,7 @@ get_jattr_priv_encoded(const job *pjob, int attr_idx)
 void
 set_job_state(job *pjob, char val)
 {
-	if (pjob != NULL) {
+	if (pjob) {
 		set_attr_c(&pjob->ji_wattr[JOB_ATR_state], val, SET);
 	}
 }
@@ -263,7 +272,7 @@ set_job_state(job *pjob, char val)
 void
 set_job_substate(job *pjob, long val)
 {
-	if (pjob != NULL)
+	if (pjob)
 		set_jattr_l_slim(pjob, JOB_ATR_substate, val, SET);
 }
 
@@ -379,6 +388,35 @@ set_jattr_c_slim(job *pjob, int attr_idx, char val, enum batch_op op)
 	return 0;
 }
 
+void
+reset_attr_flag(job *pjob, int attr_idx, int flag)
+{
+	if (pjob)
+		pjob->ji_wattr[attr_idx].at_flags = flag;
+}
+
+void
+set_attr_flag(job *pjob, int attr_idx, int flag)
+{
+	if (pjob)
+		pjob->ji_wattr[attr_idx].at_flags |= flag;
+}
+
+void
+unset_attr_flag(job *pjob, int attr_idx, int flag)
+{
+	if (pjob)
+		pjob->ji_wattr[attr_idx].at_flags &= ~flag;
+}
+
+int
+is_attr_flag_set(const job *pjob, int attr_idx, int flag)
+{
+	if (pjob != NULL)
+		return (pjob->ji_wattr[attr_idx].at_flags & flag);
+
+	return 0;
+}
 
 /**
  * @brief	Check if a job attribute is set
@@ -393,10 +431,7 @@ set_jattr_c_slim(job *pjob, int attr_idx, char val, enum batch_op op)
 int
 is_jattr_set(const job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		return pjob->ji_wattr[attr_idx].at_flags & ATR_VFLAG_SET;
-
-	return 0;
+	return is_attr_flag_set(pjob, attr_idx, ATR_VFLAG_SET);
 }
 
 /**
@@ -410,8 +445,10 @@ is_jattr_set(const job *pjob, int attr_idx)
 void
 mark_jattr_not_set(job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
+	if (pjob) {
 		pjob->ji_wattr[attr_idx].at_flags &= ~ATR_VFLAG_SET;
+		pjob->ji_wattr[attr_idx].at_flags |= ATR_MOD_MCACHE;
+	}
 }
 
 /**

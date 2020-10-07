@@ -1174,8 +1174,7 @@ req_quejob(struct batch_request *preq)
 
 			/* unset the old job's JOB_ATR_block */
 			set_jattr_l_slim(pjob, JOB_ATR_block, 0, SET);
-		mark_jattr_not_set(pjob, JOB_ATR_block);
-			pjob->ji_wattr[(int)JOB_ATR_block].at_flags |= ATR_MOD_MCACHE;
+			mark_jattr_not_set(pjob, JOB_ATR_block);
 		}
 	}
 #endif	/* not PBS_MOM */

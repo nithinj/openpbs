@@ -338,8 +338,7 @@ req_modifyjob(struct batch_request *preq)
 
 	/* check if project attribute was requested to be modified to */
 	/* be the default project value */
-	if (mod_project && (pjob->ji_wattr[(int)JOB_ATR_project].at_flags & \
-							ATR_VFLAG_SET)) {
+	if (mod_project && is_jattr_set(pjob, JOB_ATR_project)) {
 
 		if (strcmp(get_jattr_str(pjob, JOB_ATR_project),
 			PBS_DEFAULT_PROJECT) == 0) {
@@ -355,7 +354,7 @@ req_modifyjob(struct batch_request *preq)
 		}
 	}
 
-	if (pjob->ji_wattr[(int)JOB_ATR_resource].at_flags & ATR_VFLAG_MODIFY) {
+	if (is_attr_flag_set(pjob, JOB_ATR_resource, ATR_VFLAG_MODIFY)) {
 		presc = find_resc_entry(&pjob->ji_wattr[(int)JOB_ATR_resource], &svr_resc_def[RESC_SELECT]);
 		if (presc && (presc->rs_value.at_flags & ATR_VFLAG_DEFLT)) {
 			/* changing Resource_List and select is a default   */

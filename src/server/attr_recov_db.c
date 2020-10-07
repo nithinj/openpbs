@@ -155,6 +155,7 @@ encode_attr_db(struct attribute_def *padef, struct attribute *pattr, int numattr
 			(pattr+i)->at_flags &= ~ATR_VFLAG_MODIFY;
 		}
 	}
+	
 	return 0;
 }
 

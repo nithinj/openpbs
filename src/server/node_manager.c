@@ -2083,7 +2083,7 @@ stat_update(int stream)
 				/* if something other than the session id */
 				/* or resources_used was modified         */
 
-				pjob->ji_wattr[(int)JOB_ATR_session_id].at_flags &= ~ATR_VFLAG_MODIFY;
+				unset_attr_flag(pjob, JOB_ATR_session_id, ATR_VFLAG_MODIFY);
 				job_save_db(pjob); /* job_save will save only if modified */
 			}
 		}

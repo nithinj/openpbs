@@ -291,7 +291,7 @@ end_job(job *pjob, int isexpress)
 	if (isexpress) {
 		log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB, LOG_DEBUG, pjob->ji_qs.ji_jobid, "express end of job");
 		/* see if have any dependencies */
-		if (pjob->ji_wattr[(int)JOB_ATR_depend].at_flags & ATR_VFLAG_SET)
+		if (is_jattr_set(pjob, JOB_ATR_depend))
 			(void)depend_on_term(pjob);
 
 		/* Set job's exec_vnodes with current time for last_used_time. */
@@ -1453,7 +1453,7 @@ job_obit(ruu *pruu, int stream)
 	pjob->ji_qs.ji_un.ji_exect.ji_exitstat = exitstatus;
 
 	/* set the Exit_status job attribute */
-	if (pjob->ji_wattr[(int) JOB_ATR_exit_status].at_flags & ATR_VFLAG_SET)
+	if (is_jattr_set(pjob, JOB_ATR_exit_status))
 		local_exitstatus = pjob->ji_wattr[(int) JOB_ATR_exit_status].at_val.at_long;
 
 	if ((local_exitstatus == JOB_EXEC_HOOK_RERUN || local_exitstatus == JOB_EXEC_HOOK_DELETE) &&

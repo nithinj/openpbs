@@ -782,7 +782,6 @@ send_job(job *jobp, pbs_net_t hostaddr, int port, int move_type,
 		(move_type != MOVE_TYPE_Exec)) {
 		tempval = ((long)time_now - get_jattr_long(jobp, JOB_ATR_sample_starttime));
 		set_jattr_l_slim(jobp, JOB_ATR_eligible_time, tempval, INCR);
-		jobp->ji_wattr[(int)JOB_ATR_eligible_time].at_flags |= ATR_MOD_MCACHE;
 	}
 
 	pattr = jobp->ji_wattr;

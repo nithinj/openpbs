@@ -192,7 +192,7 @@ static void update_depend(job *pjob, char *d_jobid, char *d_svr, int op, int typ
 			return; /* Job dependency already established */
 		if (strcmp(pjob->ji_qs.ji_jobid, d_jobid)) {
 			dpj = make_dependjob(dp, d_jobid, d_svr);
-			pjob->ji_wattr[(int)JOB_ATR_depend].at_flags |= ATR_SET_MOD_MCACHE;
+			set_attr_flag(pjob, JOB_ATR_depend, ATR_SET_MOD_MCACHE);
 			job_save(pjob);
 			/* runone dependencies are circular */
 			if (type == JOB_DEPEND_TYPE_RUNONE)
@@ -210,7 +210,7 @@ static void update_depend(job *pjob, char *d_jobid, char *d_svr, int op, int typ
 			/* no more dependencies of this type */
 			del_depend(dp);
 
-		pjob->ji_wattr[(int)JOB_ATR_depend].at_flags |= ATR_MOD_MCACHE;
+		set_attr_flag(pjob, JOB_ATR_depend, ATR_MOD_MCACHE);
 		/* runone dependencies are circular */
 		if (type == JOB_DEPEND_TYPE_RUNONE)
 			update_depend(d_job, pjob->ji_qs.ji_jobid, d_svr, op, type);
@@ -927,7 +927,7 @@ int depend_runone_remove_dependency(job *pjob)
 					                  pjob->ji_qs.ji_jobid);
 				if (temp_pdj) {
 					del_depend_job(temp_pdj);
-					d_pjob->ji_wattr[(int)JOB_ATR_depend].at_flags |= ATR_MOD_MCACHE;
+					set_attr_flag(d_pjob, JOB_ATR_depend, ATR_MOD_MCACHE);
 				}
 			}
 		}
@@ -963,7 +963,6 @@ int depend_runone_hold_all(job *pjob)
 			d_pjob = find_job(pdj->dc_child);
 			if (d_pjob) {
 				set_jattr_b_slim(d_pjob, JOB_ATR_hold, HOLD_s, INCR);
-			d_pjob->ji_wattr[(int)JOB_ATR_hold].at_flags |= ATR_SET_MOD_MCACHE;
 				svr_setjobstate(d_pjob, JOB_STATE_LTR_HELD, JOB_SUBSTATE_HELD);
 			}
 		}
@@ -1002,7 +1001,6 @@ int depend_runone_release_all(job *pjob)
 			d_pjob = find_job(pdj->dc_child);
 			if (d_pjob) {
 				set_jattr_b_slim(d_pjob, JOB_ATR_hold, HOLD_s, DECR);
-		        d_pjob->ji_wattr[(int)JOB_ATR_hold].at_flags |= ATR_MOD_MCACHE;
 				svr_evaljobstate(d_pjob, &newstate, &newsub, 0);
 				svr_setjobstate(d_pjob, newstate, newsub); /* saves job */
 			}
@@ -1157,7 +1155,6 @@ set_depend_hold(job *pjob, attribute *pattr)
 		if ((check_job_substate(pjob, JOB_SUBSTATE_SYNCHOLD)) ||
 			(check_job_substate(pjob, JOB_SUBSTATE_DEPNHOLD))) {
 			set_jattr_b_slim(pjob, JOB_ATR_hold, HOLD_s, DECR);
-			pjob->ji_wattr[(int)JOB_ATR_hold].at_flags |= ATR_MOD_MCACHE;
 			svr_evaljobstate(pjob, &newstate, &newsubst, 0);
 			svr_setjobstate(pjob, newstate, newsubst);
 		}

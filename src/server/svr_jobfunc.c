@@ -1417,7 +1417,6 @@ check_block(job *pjob, char *message)
 	 * a reference to the fact that a history job was a blocking job . Port number need not be recorded .
 	 */
 	set_jattr_l_slim(pjob, JOB_ATR_block, -1, SET);
-pjob->ji_wattr[(int) JOB_ATR_block].at_flags |= ATR_MOD_MCACHE;
 
 	phost = get_jattr_str(pjob, JOB_ATR_submit_host);
 	if (port == 0 || phost == NULL) {
@@ -4474,7 +4473,6 @@ update_eligible_time(long newaccruetype, job *pjob)
 	long accrued_time = 0;			/* accrued time */
 	long oldaccruetype = get_jattr_long(pjob, JOB_ATR_accrue_type);
 	long timestamp = (long) time_now; 	/* time since accrual begins */
-	unsigned int flags = ATR_SET_MOD_MCACHE;
 
 	/* check if updating same accrue type or do nothing */
 	if (newaccruetype == oldaccruetype || newaccruetype == -1)
@@ -4483,16 +4481,12 @@ update_eligible_time(long newaccruetype, job *pjob)
 	/* time since accrue type last changed  */
 	accrued_time = timestamp - get_jattr_long(pjob, JOB_ATR_sample_starttime);
 
-	if (oldaccruetype == JOB_ELIGIBLE && accrued_time > 0) {
+	if (oldaccruetype == JOB_ELIGIBLE && accrued_time > 0)
 		set_jattr_l_slim(pjob, JOB_ATR_eligible_time, accrued_time, INCR);
-		pjob->ji_wattr[JOB_ATR_eligible_time].at_flags |= flags;
-	}
 
 	/* change type to new accrue type, update start time to mark change of accrue type */
 	set_jattr_l_slim(pjob, JOB_ATR_accrue_type, newaccruetype, SET);
-pjob->ji_wattr[JOB_ATR_accrue_type].at_flags |= flags;
 	set_jattr_l_slim(pjob, JOB_ATR_sample_starttime, timestamp, SET);
-pjob->ji_wattr[JOB_ATR_sample_starttime].at_flags |= flags;
 
 	/* Prepare and print log message */
 	strtime = convert_long_to_time(get_jattr_long(pjob, JOB_ATR_eligible_time));
@@ -4691,7 +4685,6 @@ svr_clean_job_history(struct work_task *pwt)
 					set_jattr_l_slim(pjob, JOB_ATR_history_timestamp,
 							get_jattr_long(pjob, JOB_ATR_stime) + walltime_used, SET);
 				}
-				pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_flags |= ATR_SET_MOD_MCACHE;
 				job_save_db(pjob);
 			}
 
@@ -5004,14 +4997,12 @@ svr_setjob_histinfo(job *pjob, histjob_type type)
 						break;
 				}
 			}
-			if (stgout_status != -1) {
+			if (stgout_status != -1)
 				set_jattr_l_slim(pjob, JOB_ATR_stageout_status, stgout_status, SET);
-			pjob->ji_wattr[(int)JOB_ATR_stageout_status].at_flags = ATR_SET_MOD_MCACHE;
-			}
+			
 			for (i=0; i<ptbl->tkm_ct; i++) {
 				if (ptbl->tkm_tbl[i].trk_exitstat) {
 					set_jattr_l_slim(pjob, JOB_ATR_exit_status, pjob->ji_qs.ji_un.ji_exect.ji_exitstat, SET);
-				pjob->ji_wattr[(int)JOB_ATR_exit_status].at_flags = ATR_SET_MOD_MCACHE;
 					break;
 				}
 			}
@@ -5057,7 +5048,6 @@ svr_setjob_histinfo(job *pjob, histjob_type type)
 
 	/* set the history timestamp */
 	set_jattr_l_slim(pjob, JOB_ATR_history_timestamp, time_now, SET);
-pjob->ji_wattr[(int) JOB_ATR_history_timestamp].at_flags |= ATR_SET_MOD_MCACHE;
 	/* update the history job state and substate */
 	svr_histjob_update(pjob, newstate, newsubstate);
 
