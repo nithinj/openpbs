@@ -354,7 +354,7 @@ req_modifyjob(struct batch_request *preq)
 		}
 	}
 
-	if (is_attr_flag_set(pjob, JOB_ATR_resource, ATR_VFLAG_MODIFY)) {
+	if (is_jattr_flag_set(pjob, JOB_ATR_resource, ATR_VFLAG_MODIFY)) {
 		presc = find_resc_entry(&pjob->ji_wattr[(int)JOB_ATR_resource], &svr_resc_def[RESC_SELECT]);
 		if (presc && (presc->rs_value.at_flags & ATR_VFLAG_DEFLT)) {
 			/* changing Resource_List and select is a default   */

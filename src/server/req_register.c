@@ -192,7 +192,7 @@ static void update_depend(job *pjob, char *d_jobid, char *d_svr, int op, int typ
 			return; /* Job dependency already established */
 		if (strcmp(pjob->ji_qs.ji_jobid, d_jobid)) {
 			dpj = make_dependjob(dp, d_jobid, d_svr);
-			set_attr_flag(pjob, JOB_ATR_depend, ATR_SET_MOD_MCACHE);
+			set_jattr_flag(pjob, JOB_ATR_depend, ATR_SET_MOD_MCACHE);
 			job_save(pjob);
 			/* runone dependencies are circular */
 			if (type == JOB_DEPEND_TYPE_RUNONE)
@@ -210,7 +210,7 @@ static void update_depend(job *pjob, char *d_jobid, char *d_svr, int op, int typ
 			/* no more dependencies of this type */
 			del_depend(dp);
 
-		set_attr_flag(pjob, JOB_ATR_depend, ATR_MOD_MCACHE);
+		set_jattr_flag(pjob, JOB_ATR_depend, ATR_MOD_MCACHE);
 		/* runone dependencies are circular */
 		if (type == JOB_DEPEND_TYPE_RUNONE)
 			update_depend(d_job, pjob->ji_qs.ji_jobid, d_svr, op, type);
@@ -927,7 +927,7 @@ int depend_runone_remove_dependency(job *pjob)
 					                  pjob->ji_qs.ji_jobid);
 				if (temp_pdj) {
 					del_depend_job(temp_pdj);
-					set_attr_flag(d_pjob, JOB_ATR_depend, ATR_MOD_MCACHE);
+					set_jattr_flag(d_pjob, JOB_ATR_depend, ATR_MOD_MCACHE);
 				}
 			}
 		}

@@ -326,8 +326,8 @@ status_job(job *pjob, struct batch_request *preq, svrattrl *pal, pbs_list_head *
 		}
 	} else {
 		/* reset the set flags */
-		reset_attr_flag(pjob, JOB_ATR_eligible_time, old_elig_flags);
-		reset_attr_flag(pjob, JOB_ATR_accrue_type, old_atyp_flags);
+		reset_jattr_flag(pjob, JOB_ATR_eligible_time, old_elig_flags);
+		reset_jattr_flag(pjob, JOB_ATR_accrue_type, old_atyp_flags);
 	}
 
 	if (revert_state_r)
@@ -472,8 +472,8 @@ status_subjob(job *pjob, struct batch_request *preq, svrattrl *pal, int subj, pb
 
 	/* reset the flags */
 	if (get_attr_flag(pjob, SVR_ATR_EligibleTimeEnable) == 0) {
-		set_attr_flag(pjob, JOB_ATR_eligible_time, oldeligflags);
-		set_attr_flag(pjob, JOB_ATR_accrue_type, oldatypflags);
+		set_jattr_flag(pjob, JOB_ATR_eligible_time, oldeligflags);
+		set_jattr_flag(pjob, JOB_ATR_accrue_type, oldatypflags);
 	}
 
 	return (rc);

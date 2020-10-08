@@ -48,6 +48,7 @@
 #include "attribute.h"
 #include "job.h"
 #include "pbs_error.h"
+#include "base_obj.h"
 
 
 
@@ -389,33 +390,27 @@ set_jattr_c_slim(job *pjob, int attr_idx, char val, enum batch_op op)
 }
 
 void
-reset_attr_flag(job *pjob, int attr_idx, int flag)
+reset_jattr_flag(job *pjob, int attr_idx, int flag)
 {
-	if (pjob)
-		pjob->ji_wattr[attr_idx].at_flags = flag;
+	return __reset_attr_flag(pjob, attr_idx, flag, OBJ_JOB);
 }
 
 void
-set_attr_flag(job *pjob, int attr_idx, int flag)
+set_jattr_flag(job *pjob, int attr_idx, int flag)
 {
-	if (pjob)
-		pjob->ji_wattr[attr_idx].at_flags |= flag;
+	return __set_attr_flag(pjob, attr_idx, flag, OBJ_JOB);
 }
 
 void
-unset_attr_flag(job *pjob, int attr_idx, int flag)
+unset_jattr_flag(job *pjob, int attr_idx, int flag)
 {
-	if (pjob)
-		pjob->ji_wattr[attr_idx].at_flags &= ~flag;
+	return __unset_attr_flag(pjob, attr_idx, flag, OBJ_JOB);
 }
 
 int
-is_attr_flag_set(const job *pjob, int attr_idx, int flag)
+is_jattr_flag_set(const job *pjob, int attr_idx, int flag)
 {
-	if (pjob != NULL)
-		return (pjob->ji_wattr[attr_idx].at_flags & flag);
-
-	return 0;
+	return __is_attr_flag_set(pjob, attr_idx, flag, OBJ_JOB);
 }
 
 /**
@@ -431,7 +426,7 @@ is_attr_flag_set(const job *pjob, int attr_idx, int flag)
 int
 is_jattr_set(const job *pjob, int attr_idx)
 {
-	return is_attr_flag_set(pjob, attr_idx, ATR_VFLAG_SET);
+	return is_jattr_flag_set(pjob, attr_idx, ATR_VFLAG_SET);
 }
 
 /**
