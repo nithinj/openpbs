@@ -373,7 +373,6 @@ extern int  decode_uacl(attribute *patr, char *name, char *rn, char *val);
 extern int  decode_unkn  (attribute *patr, char *name, char *rn, char *val);
 extern int  decode_nodes(struct attribute *, char *, char *, char *);
 extern int  decode_select(struct attribute *, char *, char *, char *);
-extern int  decode_Mom_list(struct attribute *, char *, char *, char *);
 
 extern int encode_b(const attribute *attr, pbs_list_head *phead, char *atname,
 					char *rsname, int mode, svrattrl **rtnl);

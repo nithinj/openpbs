@@ -1043,7 +1043,7 @@ char *get_jattr_str(const job *pjob, int attr_idx);
 long get_jattr_long(const job *pjob, int attr_idx);
 svrattrl *get_jattr_usr_encoded(const job *pjob, int attr_idx);
 svrattrl *get_jattr_priv_encoded(const job *pjob, int attr_idx);
-int get_attr_flag(const job *pjob, int attr_idx);
+int get_jattr_flag(const job *pjob, int attr_idx);
 void set_job_state(job *pjob, char val);
 void set_job_substate(job *pjob, long val);
 int set_jattr_str_slim(job *pjob, int attr_idx, char *val, char *rscn);

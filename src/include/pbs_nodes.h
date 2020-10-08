@@ -255,6 +255,7 @@ struct pbsnode {
 	void *nd_lic_info;			/* information set and used for licensing */
 	int nd_added_to_unlicensed_list;/* To record if the node is added to the list of unlicensed node */
 };
+typedef struct pbsnode pbs_node;
 
 enum	warn_codes { WARN_none, WARN_ngrp_init, WARN_ngrp_ck, WARN_ngrp };
 enum	nix_flags { NIX_none, NIX_qnodes, NIX_nonconsume };
@@ -358,15 +359,17 @@ struct tree {
 	struct tree	  *left, *right;
 };
 
-extern void *node_attr_idx;
 extern struct attribute_def node_attr_def[]; /* node attributes defs */
+extern mominfo_t **mominfo_array;
+extern int mominfo_array_size;
+
+#ifndef PBS_MOM /* PBS_SERVER */
+extern void *node_attr_idx;
 extern struct pbsnode **pbsndlist;           /* array of ptr to nodes  */
 extern int svr_totnodes;                     /* number of nodes (hosts) */
 extern struct tree *ipaddrs;
 extern struct tree *streams;
-extern mominfo_t **mominfo_array;
 extern pntPBS_IP_LIST pbs_iplist;
-extern int mominfo_array_size;
 extern int mom_send_vnode_map;
 extern int svr_num_moms;
 
@@ -404,25 +407,29 @@ extern	void	set_node_license(void);
 extern  int	set_node_topology(attribute*, void*, int);
 extern	void	unset_node_license(struct pbsnode *);
 extern  mominfo_t *tfind2(const unsigned long, const unsigned long, struct tree **);
-extern	int	set_node_host_name(attribute *, void *, int);
 extern	int	set_node_hook_action(attribute *, void *, int);
 extern  int	set_node_mom_port  (attribute *, void *, int);
-extern  mominfo_t *create_mom_entry(char *, unsigned int);
 extern  mominfo_t *find_mom_entry(char *, unsigned int);
 extern  void	momptr_down(mominfo_t *, char *);
 extern  void	momptr_offline_by_mom(mominfo_t *, char *);
 extern  void	momptr_clear_offline_by_mom(mominfo_t *, char *);
-extern  void	   delete_mom_entry(mominfo_t *);
 extern  mominfo_t *create_svrmom_entry(char *, unsigned int, unsigned long *);
 extern  void       delete_svrmom_entry(mominfo_t *);
-extern  int	legal_vnode_char(char, int);
-extern 	char	*parse_node_token(char *, int, int *, char *);
 extern  int	cross_link_mom_vnode(struct pbsnode *, mominfo_t *);
 extern 	int	fix_indirectness(resource *, struct pbsnode *, int);
 extern	int	chk_vnode_pool(attribute *, void *, int);
 extern	void	free_pnode(struct pbsnode *);
 extern	int	save_nodes_db(int, void *);
 extern void	propagate_socket_licensing(mominfo_t *);
+extern int	decode_Mom_list(struct attribute *, char *, char *, char *);
+extern	int	set_node_host_name(attribute *, void *, int);
+#endif /* PBS_SERVER */
+
+/* Functions used in both server and mom */
+extern  int	legal_vnode_char(char, int);
+extern 	char	*parse_node_token(char *, int, int *, char *);
+extern  mominfo_t *create_mom_entry(char *, unsigned int);
+extern  void	   delete_mom_entry(mominfo_t *);
 
 extern char *msg_daemonname;
 
@@ -461,6 +468,25 @@ extern void		destroy_vmap(void *);
 extern mominfo_t	*find_vmapent_byID(void *, const char *);
 extern int		add_vmapent_byID(void *, const char *, void *);
 extern  int		open_momstream(mominfo_t *);
+
+char *get_ndattr_str(const pbs_node *, int attr_idx);
+long get_ndattr_long(const pbs_node *, int attr_idx);
+svrattrl *get_ndattr_usr_encoded(const pbs_node *, int attr_idx);
+svrattrl *get_ndattr_priv_encoded(const pbs_node *, int attr_idx);
+int get_ndattr_flag(const pbs_node *, int attr_idx);
+int set_ndattr_str_light(pbs_node *, int attr_idx, char *val, char *rscn);
+int set_ndattr_light(pbs_node *, int, void *, enum batch_op);
+int set_ndattr_generic(pbs_node *, int attr_idx, char *val, char *rscn, enum batch_op op);
+int is_ndattr_flag_set(const pbs_node *, int attr_idx, int flag);
+void reset_ndattr_flag(pbs_node *, int attr_idx, int flag);
+void set_ndattr_flag(pbs_node *, int attr_idx, int flag);
+void unset_ndattr_flag(pbs_node *, int attr_idx, int flag);
+int is_ndattr_set(const pbs_node *, int attr_idx);
+void free_ndattr(pbs_node *, int attr_idx);
+void mark_ndattr_not_set(pbs_node *, int attr_idx);
+void mark_ndattr_set(pbs_node *, int attr_idx);
+attribute* get_ndattr(pbs_node *, int);
+
 
 #ifdef	__cplusplus
 }

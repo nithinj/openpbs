@@ -239,7 +239,7 @@ job_save_db(job *pjob)
 	char *conn_db_err = NULL;
 
 	old_mtime = get_jattr_long(pjob, JOB_ATR_mtime);
-	old_flags = get_attr_flag(pjob, JOB_ATR_mtime);
+	old_flags = get_jattr_flag(pjob, JOB_ATR_mtime);
 
 	if ((savetype = job_to_db(pjob, &dbjob)) == -1)
 		goto done;

@@ -174,10 +174,7 @@ get_job_substate(const job *pjob)
 char *
 get_jattr_str(const job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		return pjob->ji_wattr[attr_idx].at_val.at_str;
-
-	return NULL;
+	return __get_attr_str(pjob, attr_idx, OBJ_JOB);
 }
 
 /**
@@ -193,10 +190,7 @@ get_jattr_str(const job *pjob, int attr_idx)
 long
 get_jattr_long(const job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		return pjob->ji_wattr[attr_idx].at_val.at_long;
-
-	return -1;
+	return __get_attr_long(pjob, attr_idx, OBJ_JOB);
 }
 
 /**
@@ -212,10 +206,7 @@ get_jattr_long(const job *pjob, int attr_idx)
 svrattrl *
 get_jattr_usr_encoded(const job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		return pjob->ji_wattr[attr_idx].at_user_encoded;
-
-	return NULL;
+	return __get_attr_usr_encoded(pjob, attr_idx, OBJ_JOB);
 }
 
 /**
@@ -231,19 +222,13 @@ get_jattr_usr_encoded(const job *pjob, int attr_idx)
 svrattrl *
 get_jattr_priv_encoded(const job *pjob, int attr_idx)
 {
-	if (pjob)
-		return pjob->ji_wattr[attr_idx].at_priv_encoded;
-
-	return NULL;
+	return __get_attr_priv_encoded(pjob, attr_idx, OBJ_JOB);
 }
 
 int
-get_attr_flag(const job *pjob, int attr_idx)
+get_jattr_flag(const job *pjob, int attr_idx)
 {
-	if (pjob)
-		return pjob->ji_wattr[attr_idx].at_flags;
-
-	return 0;
+	return __get_attr_flag(pjob, attr_idx, OBJ_JOB);
 }
 
 /**
@@ -293,10 +278,7 @@ set_job_substate(job *pjob, long val)
 int
 set_jattr_generic(job *pjob, int attr_idx, char *val, char *rscn, enum batch_op op)
 {
-	if (pjob == NULL || val == NULL)
-		return 1;
-
-	return set_attr_generic(&pjob->ji_wattr[attr_idx], &job_attr_def[attr_idx], val, rscn, op);
+	return __set_attr_generic(pjob, attr_idx, val, rscn, op, OBJ_JOB);
 }
 
 /**
@@ -314,10 +296,25 @@ set_jattr_generic(job *pjob, int attr_idx, char *val, char *rscn, enum batch_op 
 int
 set_jattr_str_slim(job *pjob, int attr_idx, char *val, char *rscn)
 {
-	if (pjob == NULL || val == NULL)
-		return 1;
+	return __set_attr_str_light(pjob, attr_idx, val, rscn, OBJ_JOB);
+}
 
-	return set_attr_generic(&pjob->ji_wattr[attr_idx], &job_attr_def[attr_idx], val, rscn, INTERNAL);
+/**
+ * @brief	"fast" job attribute setter
+ *
+ * @param[in]	pjob - pointer to job
+ * @param[in]	attr_idx - attribute index to set
+ * @param[in]	val - new val to set
+ * @param[in]	rscn - new resource val to set, if applicable
+ *
+ * @return	int
+ * @retval	0 for success
+ * @retval	1 for failure
+ */
+int
+set_jattr(job *pjob, int attr_idx, void *val, enum batch_op op)
+{
+	return __set_attr(pjob, attr_idx, val, op, OBJ_JOB);
 }
 
 /**
@@ -335,12 +332,7 @@ set_jattr_str_slim(job *pjob, int attr_idx, char *val, char *rscn)
 int
 set_jattr_l_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 {
-	if (pjob == NULL)
-		return 1;
-
-	set_attr_l(&pjob->ji_wattr[attr_idx], val, op);
-
-	return 0;
+	return set_jattr(pjob, attr_idx, &val, op);
 }
 
 /**
@@ -358,12 +350,7 @@ set_jattr_l_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 int
 set_jattr_b_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 {
-	if (pjob == NULL)
-		return 1;
-
-	set_attr_b(&pjob->ji_wattr[attr_idx], val, op);
-
-	return 0;
+	return set_jattr(pjob, attr_idx, &val, op);
 }
 
 /**
@@ -381,12 +368,7 @@ set_jattr_b_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 int
 set_jattr_c_slim(job *pjob, int attr_idx, char val, enum batch_op op)
 {
-	if (pjob == NULL)
-		return 1;
-
-	set_attr_c(&pjob->ji_wattr[attr_idx], val, op);
-
-	return 0;
+	return set_jattr(pjob, attr_idx, &val, op);
 }
 
 void
@@ -440,10 +422,8 @@ is_jattr_set(const job *pjob, int attr_idx)
 void
 mark_jattr_not_set(job *pjob, int attr_idx)
 {
-	if (pjob) {
-		pjob->ji_wattr[attr_idx].at_flags &= ~ATR_VFLAG_SET;
-		pjob->ji_wattr[attr_idx].at_flags |= ATR_MOD_MCACHE;
-	}
+	__unset_attr_flag(pjob, attr_idx, ATR_VFLAG_SET, OBJ_JOB);
+	__set_attr_flag(pjob, attr_idx, ATR_MOD_MCACHE, OBJ_JOB);
 }
 
 /**
@@ -457,8 +437,7 @@ mark_jattr_not_set(job *pjob, int attr_idx)
 void
 mark_jattr_set(job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		pjob->ji_wattr[attr_idx].at_flags |= ATR_VFLAG_SET;
+	__unset_attr_flag(pjob, attr_idx, ATR_VFLAG_SET, OBJ_JOB);
 }
 
 /**
@@ -472,6 +451,5 @@ mark_jattr_set(job *pjob, int attr_idx)
 void
 free_jattr(job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		job_attr_def[attr_idx].at_free(&pjob->ji_wattr[attr_idx]);
+	return __free_attr(pjob, attr_idx, OBJ_JOB);
 }

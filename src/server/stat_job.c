@@ -279,10 +279,10 @@ status_job(job *pjob, struct batch_request *preq, svrattrl *pal, pbs_list_head *
 	} else {
 		/* eligible_time_enable is off so,				       */
 		/* clear set flag so that eligible_time and accrue type dont show */
-		old_elig_flags = get_attr_flag(pjob, JOB_ATR_eligible_time);
+		old_elig_flags = get_jattr_flag(pjob, JOB_ATR_eligible_time);
 		mark_jattr_not_set(pjob, JOB_ATR_eligible_time);
 
-		old_atyp_flags = get_attr_flag(pjob, JOB_ATR_accrue_type);
+		old_atyp_flags = get_jattr_flag(pjob, JOB_ATR_accrue_type);
 		mark_jattr_not_set(pjob, JOB_ATR_accrue_type);
 	}
 
@@ -448,10 +448,10 @@ status_subjob(job *pjob, struct batch_request *preq, svrattrl *pal, int subj, pb
 	/* when eligible_time_enable is off,				      */
 	/* clear the set flag so that eligible_time and accrue_type dont show */
 	if (server.sv_attr[(int)SVR_ATR_EligibleTimeEnable].at_val.at_long == 0) {
-		oldeligflags = get_attr_flag(pjob, JOB_ATR_eligible_time);
+		oldeligflags = get_jattr_flag(pjob, JOB_ATR_eligible_time);
 		mark_jattr_not_set(pjob, JOB_ATR_eligible_time);
 
-		oldatypflags = get_attr_flag(pjob, JOB_ATR_accrue_type);
+		oldatypflags = get_jattr_flag(pjob, JOB_ATR_accrue_type);
 		mark_jattr_not_set(pjob, JOB_ATR_accrue_type);
 	}
 
@@ -471,7 +471,7 @@ status_subjob(job *pjob, struct batch_request *preq, svrattrl *pal, int subj, pb
 	}
 
 	/* reset the flags */
-	if (get_attr_flag(pjob, SVR_ATR_EligibleTimeEnable) == 0) {
+	if (get_jattr_flag(pjob, SVR_ATR_EligibleTimeEnable) == 0) {
 		set_jattr_flag(pjob, JOB_ATR_eligible_time, oldeligflags);
 		set_jattr_flag(pjob, JOB_ATR_accrue_type, oldatypflags);
 	}
