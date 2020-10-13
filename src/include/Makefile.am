@@ -62,7 +62,6 @@ noinst_HEADERS = \
 	hook_func.h \
 	hook.h \
 	ifl_internal.h \
-	base_obj.h \
 	job.h \
 	libpbs.h \
 	libsec.h \

@@ -255,6 +255,7 @@ struct pbsnode {
 	void *nd_lic_info;			/* information set and used for licensing */
 	int nd_added_to_unlicensed_list;/* To record if the node is added to the list of unlicensed node */
 };
+typedef struct pbsnode pbs_node;
 
 enum	warn_codes { WARN_none, WARN_ngrp_init, WARN_ngrp_ck, WARN_ngrp };
 enum	nix_flags { NIX_none, NIX_qnodes, NIX_nonconsume };
@@ -461,6 +462,24 @@ extern void		destroy_vmap(void *);
 extern mominfo_t	*find_vmapent_byID(void *, const char *);
 extern int		add_vmapent_byID(void *, const char *, void *);
 extern  int		open_momstream(mominfo_t *);
+
+/* attribute getters and setters for node object */
+char *get_ndattr_str(const pbs_node *pnode, int attr_idx);
+long get_ndattr_long(const pbs_node *pnode, int attr_idx);
+svrattrl *get_ndattr_usr_encoded(const pbs_node *pnode, int attr_idx);
+svrattrl *get_ndattr_priv_encoded(const pbs_node *pnode, int attr_idx);
+int get_ndattr_flag(const pbs_node *pnode, int attr_idx);
+int set_ndattr_str_light(pbs_node *pnode, int attr_idx, char *val, char *rscn);
+int set_ndattr_generic(pbs_node *pnode, int attr_idx, char *val, char *rscn, enum batch_op op);
+int set_ndattr_light(pbs_node *pnode, int attr_idx, void *val, enum batch_op op);
+int is_ndattr_flag_set(const pbs_node *pnode, int attr_idx, int flag);
+void reset_ndattr_flag(pbs_node *pnode, int attr_idx, int flag);
+void set_ndattr_flag(pbs_node *pnode, int attr_idx, int flag);
+void unset_ndattr_flag(pbs_node *pnode, int attr_idx, int flag);
+int is_ndattr_set(const pbs_node *pnode, int attr_idx);
+void free_ndattr(pbs_node *pnode, int attr_idx);
+void mark_ndattr_not_set(pbs_node *pnode, int attr_idx);
+void mark_ndattr_set(pbs_node *pnode, int attr_idx);
 
 #ifdef	__cplusplus
 }

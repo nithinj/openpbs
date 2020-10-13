@@ -48,7 +48,6 @@
 #include "attribute.h"
 #include "job.h"
 #include "pbs_error.h"
-#include "base_obj.h"
 
 
 
@@ -238,7 +237,7 @@ get_jattr_priv_encoded(const job *pjob, int attr_idx)
 }
 
 int
-get_attr_flag(const job *pjob, int attr_idx)
+get_jattr_flag(const job *pjob, int attr_idx)
 {
 	if (pjob)
 		return pjob->ji_wattr[attr_idx].at_flags;
@@ -321,6 +320,47 @@ set_jattr_str_slim(job *pjob, int attr_idx, char *val, char *rscn)
 }
 
 /**
+ * @brief	"fast" job attribute setter
+ *
+ * @param[in]	pjob - pointer to job
+ * @param[in]	attr_idx - attribute index to set
+ * @param[in]	val - new val to set
+ * @param[in]	rscn - new resource val to set, if applicable
+ *
+ * @return	int
+ * @retval	0 for success
+ * @retval	1 for failure
+ */
+int
+set_jattr_light(job *pjob, int attr_idx, void *val, enum batch_op op)
+{
+	attribute *pattr;
+
+	if (pjob == NULL)
+		return 1;
+
+	pattr = &pjob->ji_wattr[attr_idx];
+
+	switch (job_attr_def[attr_idx].at_type) {
+
+	case ATR_TYPE_LONG:
+		set_attr_l(pattr, *(long *) val, op);
+		break;
+	case ATR_TYPE_CHAR:
+		set_attr_c(pattr, *(char *) val, op);
+		break;
+	case ATR_TYPE_BOOL:
+		set_attr_b(pattr, *(int *) val, op);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+/**
  * @brief	"fast" job attribute setter for long values
  *
  * @param[in]	pjob - pointer to job
@@ -335,12 +375,7 @@ set_jattr_str_slim(job *pjob, int attr_idx, char *val, char *rscn)
 int
 set_jattr_l_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 {
-	if (pjob == NULL)
-		return 1;
-
-	set_attr_l(&pjob->ji_wattr[attr_idx], val, op);
-
-	return 0;
+	return set_jattr_light(pjob, attr_idx, &val, op);
 }
 
 /**
@@ -358,12 +393,7 @@ set_jattr_l_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 int
 set_jattr_b_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 {
-	if (pjob == NULL)
-		return 1;
-
-	set_attr_b(&pjob->ji_wattr[attr_idx], val, op);
-
-	return 0;
+	return set_jattr_light(pjob, attr_idx, &val, op);
 }
 
 /**
@@ -381,36 +411,43 @@ set_jattr_b_slim(job *pjob, int attr_idx, long val, enum batch_op op)
 int
 set_jattr_c_slim(job *pjob, int attr_idx, char val, enum batch_op op)
 {
-	if (pjob == NULL)
-		return 1;
-
-	set_attr_c(&pjob->ji_wattr[attr_idx], val, op);
-
-	return 0;
+	return set_jattr_light(pjob, attr_idx, &val, op);
 }
 
 void
 reset_jattr_flag(job *pjob, int attr_idx, int flag)
 {
-	return __reset_attr_flag(pjob, attr_idx, flag, OBJ_JOB);
+	if (!pjob)
+		return;
+
+	pjob->ji_wattr[attr_idx].at_flags = flag;
 }
 
 void
 set_jattr_flag(job *pjob, int attr_idx, int flag)
 {
-	return __set_attr_flag(pjob, attr_idx, flag, OBJ_JOB);
+	if (!pjob)
+		return;
+
+	pjob->ji_wattr[attr_idx].at_flags |= flag;
 }
 
 void
 unset_jattr_flag(job *pjob, int attr_idx, int flag)
 {
-	return __unset_attr_flag(pjob, attr_idx, flag, OBJ_JOB);
+	if (!pjob)
+		return;
+
+	pjob->ji_wattr[attr_idx].at_flags &= ~flag;
 }
 
 int
 is_jattr_flag_set(const job *pjob, int attr_idx, int flag)
 {
-	return __is_attr_flag_set(pjob, attr_idx, flag, OBJ_JOB);
+        if (!pjob)
+		return 0;
+
+	return pjob->ji_wattr[attr_idx].at_flags & flag;
 }
 
 /**
@@ -440,10 +477,8 @@ is_jattr_set(const job *pjob, int attr_idx)
 void
 mark_jattr_not_set(job *pjob, int attr_idx)
 {
-	if (pjob) {
-		pjob->ji_wattr[attr_idx].at_flags &= ~ATR_VFLAG_SET;
-		pjob->ji_wattr[attr_idx].at_flags |= ATR_MOD_MCACHE;
-	}
+	unset_jattr_flag(pjob, attr_idx, ATR_VFLAG_SET);
+	set_jattr_flag(pjob, attr_idx, ATR_MOD_MCACHE);
 }
 
 /**
@@ -457,8 +492,7 @@ mark_jattr_not_set(job *pjob, int attr_idx)
 void
 mark_jattr_set(job *pjob, int attr_idx)
 {
-	if (pjob != NULL)
-		pjob->ji_wattr[attr_idx].at_flags |= ATR_VFLAG_SET;
+	set_jattr_flag(pjob, attr_idx, ATR_VFLAG_SET);
 }
 
 /**

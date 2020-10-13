@@ -82,13 +82,13 @@ pbs_server_bin_SOURCES = \
 	geteusernam.c \
 	hook_func.c \
 	issue_request.c \
-	attr_get_set.c \
 	jattr_get_set.c \
 	job_func.c \
 	job_recov_db.c \
 	job_route.c \
 	licensing_func.c \
 	mom_info.c \
+	nd_attr_get_set.c \
 	node_func.c \
 	node_manager.c \
 	node_recov_db.c \
