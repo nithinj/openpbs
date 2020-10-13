@@ -311,3 +311,10 @@ free_ndattr(pbs_node *pnode, int attr_idx)
 	if (pnode)
 		node_attr_def[attr_idx].at_free(&pnode->nd_attr[attr_idx]);
 }
+
+resource *
+get_nd_resc_for_update()
+{
+	if (pnode)
+		
+}
