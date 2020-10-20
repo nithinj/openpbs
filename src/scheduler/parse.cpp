@@ -666,7 +666,7 @@ parse_config(const char *fname)
 								tmp2 = string_dup(tok);
 
 								tok = strtok(NULL, DELIM);
-								if (tok != NULL) {
+								if (tok && !is_same_host(tok, pbs_default())) {
 									tmp3 = string_dup(tok);
 									if (tmp3 == NULL)
 										error = 1;
