@@ -80,6 +80,25 @@ get_ndattr_str(const pbs_node *pnode, int attr_idx)
  * @retval	-1 if pnode is NULL
  */
 long
+get_ndattr_char(const pbs_node *pnode, int attr_idx)
+{
+	if (pnode)
+		return pnode->nd_attr[attr_idx].at_val.at_char;
+
+	return -1;
+}
+
+/**
+ * @brief	Getter function for node attribute of type long
+ *
+ * @param[in]	pnode - pointer to the node
+ * @param[in]	attr_idx - index of the attribute to return
+ *
+ * @return	long
+ * @retval	long value of the attribute
+ * @retval	-1 if pnode is NULL
+ */
+long
 get_ndattr_long(const pbs_node *pnode, int attr_idx)
 {
 	if (pnode != NULL)
@@ -126,6 +145,13 @@ get_ndattr_priv_encoded(const pbs_node *pnode, int attr_idx)
 	return NULL;
 }
 
+attribute*
+get_ndattr(pbs_node *pnode, int attr_idx)
+{
+	if (pnode)
+		return &pnode->nd_attr[attr_idx];
+}
+
 int
 get_ndattr_flag(const pbs_node *pnode, int attr_idx)
 {
@@ -170,7 +196,7 @@ set_ndattr_generic(pbs_node *pnode, int attr_idx, char *val, char *rscn, enum ba
  * @retval	1 for failure
  */
 int
-set_ndattr_str_light(pbs_node *pnode, int attr_idx, char *val, char *rscn)
+set_ndattr_str_slim(pbs_node *pnode, int attr_idx, char *val, char *rscn)
 {
 	if (pnode == NULL || val == NULL)
 		return 1;
@@ -191,7 +217,7 @@ set_ndattr_str_light(pbs_node *pnode, int attr_idx, char *val, char *rscn)
  * @retval	1 for failure
  */
 int
-set_ndattr_light(pbs_node *pnode, int attr_idx, void *val, enum batch_op op)
+set_ndattr_slim(pbs_node *pnode, int attr_idx, void *val, enum batch_op op)
 {
 	attribute *pattr;
 
@@ -310,11 +336,4 @@ free_ndattr(pbs_node *pnode, int attr_idx)
 {
 	if (pnode)
 		node_attr_def[attr_idx].at_free(&pnode->nd_attr[attr_idx]);
-}
-
-resource *
-get_nd_resc_for_update()
-{
-	if (pnode)
-		
 }

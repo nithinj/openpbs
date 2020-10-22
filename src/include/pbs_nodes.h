@@ -469,9 +469,9 @@ long get_ndattr_long(const pbs_node *pnode, int attr_idx);
 svrattrl *get_ndattr_usr_encoded(const pbs_node *pnode, int attr_idx);
 svrattrl *get_ndattr_priv_encoded(const pbs_node *pnode, int attr_idx);
 int get_ndattr_flag(const pbs_node *pnode, int attr_idx);
-int set_ndattr_str_light(pbs_node *pnode, int attr_idx, char *val, char *rscn);
+int set_ndattr_str_slim(pbs_node *pnode, int attr_idx, char *val, char *rscn);
 int set_ndattr_generic(pbs_node *pnode, int attr_idx, char *val, char *rscn, enum batch_op op);
-int set_ndattr_light(pbs_node *pnode, int attr_idx, void *val, enum batch_op op);
+int set_ndattr_slim(pbs_node *pnode, int attr_idx, void *val, enum batch_op op);
 int is_ndattr_flag_set(const pbs_node *pnode, int attr_idx, int flag);
 void reset_ndattr_flag(pbs_node *pnode, int attr_idx, int flag);
 void set_ndattr_flag(pbs_node *pnode, int attr_idx, int flag);
@@ -480,6 +480,7 @@ int is_ndattr_set(const pbs_node *pnode, int attr_idx);
 void free_ndattr(pbs_node *pnode, int attr_idx);
 void mark_ndattr_not_set(pbs_node *pnode, int attr_idx);
 void mark_ndattr_set(pbs_node *pnode, int attr_idx);
+attribute* get_ndattr(pbs_node *pnode, int attr_idx);
 
 #ifdef	__cplusplus
 }
