@@ -1322,7 +1322,7 @@ send_run_job(int pbs_sd, int has_runjob_hook, char *jobid, char *execvnode,
 
 	if (sc_attrs.runjob_mode == RJ_EXECJOB_HOOK)
 		return pbs_runjob(pbs_sd, jobid, execvnode, extend);
-	else if (((sc_attrs.runjob_mode == RJ_RUNJOB_HOOK) && has_runjob_hook) || !msvr_local)
+	else if (((sc_attrs.runjob_mode == RJ_RUNJOB_HOOK) && has_runjob_hook))
 		return pbs_asyrunjob_ack(pbs_sd, jobid, execvnode, extend);
 	else
 		return pbs_asyrunjob(pbs_sd, jobid, execvnode, extend);

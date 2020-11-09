@@ -86,6 +86,8 @@
 
 #define	RETRY	3	/* number of times to retry network move */
 
+int unack_peersvr_req = 0;
+
 /* External functions called */
 
 extern void	stat_mom_job(job *);
@@ -365,6 +367,9 @@ post_routejob(struct work_task *pwt)
 	return;
 }
 
+extern pbs_list_head task_list_event;
+extern pbs_list_head task_list_immed;
+
 /**
  * @brief
  * 		post_movejob - clean up action for child started in net_move/send_job
@@ -398,6 +403,26 @@ post_movejob(struct work_task *pwt)
 		sprintf(log_buffer, "bad request type %d", req->rq_type);
 		log_err(-1, __func__, log_buffer);
 		return;
+	}
+
+	if (req && req->rq_type == PBS_BATCH_MoveJob && req->rq_ind.rq_move.run_exec_vnode)
+		unack_peersvr_req--;
+
+	if (unack_peersvr_req == 0) {
+		struct work_task *ptask;
+
+		log_errf(-1, __func__, "ack received. ready for sched");
+		ptask = (struct work_task *)GET_NEXT(task_list_event);
+		while (ptask) {
+			if ((ptask->wt_type == WORK_Deferred_Reply) &&
+				(ptask->wt_func == (void *)req_stat_svr_task)) {
+				delete_link(&ptask->wt_linkall);
+				append_link(&task_list_immed,
+					&ptask->wt_linkall, ptask);
+				log_errf(-1, __func__, "converting to immediate task");
+			}
+			ptask = (struct work_task *)GET_NEXT(ptask->wt_linkall);
+		}
 	}
 
 	jobp = find_job(req->rq_ind.rq_move.rq_jid);
@@ -632,6 +657,8 @@ send_job_exec(job *jobp, pbs_net_t hostaddr, int port, int move_type, struct bat
 	if (move_type == MOVE_TYPE_Move_Run) {
 		if (PBSD_commit_and_run(stream, job_id, PROT_TPP, &dup_msgid, request->rq_ind.rq_move.run_exec_vnode) != 0)
 			goto send_err;
+		log_errf(-1, __func__, "moving and running job: %s", job_id);
+		unack_peersvr_req++;
 	} else {
 		if (PBSD_commit(stream, job_id, PROT_TPP, &dup_msgid) != 0)
 			goto send_err;

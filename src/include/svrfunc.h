@@ -144,6 +144,7 @@ extern int confirm_resv_locally(resc_resv *, struct batch_request *, char *);
 extern int set_select_and_place(int, void *, attribute *);
 extern int make_schedselect(attribute *, resource *, pbs_queue *, attribute *);
 extern long long get_next_svr_sequence_id(void);
+extern void req_stat_svr_task(struct work_task *);
 
 #ifdef _PROVISION_H
 extern int find_prov_vnode_list(job *, exec_vnode_listtype *, char **);

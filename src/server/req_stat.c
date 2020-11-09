@@ -727,6 +727,8 @@ update_isrunhook(attribute *pattr)
 	}
 }
 
+extern int unack_peersvr_req;
+
 /**
  * @brief
  * 		req_stat_svr - service the Status Server Request
@@ -757,9 +759,21 @@ req_stat_svr(struct batch_request *preq)
 
 	conn = get_conn(preq->rq_conn);
 	if (conn->conn_origin == CONN_SCHED_PRIMARY) {
+		if (unack_peersvr_req > 0) {
+
+			if (set_task(WORK_Deferred_Reply, preq->rq_conn, req_stat_svr_task, (void *) preq) == NULL) {
+				log_err(errno, __func__, "could not set_task");
+				return;
+			}
+
+			log_errf(-1, __func__, "unack_peersvr_req: %d, deferring stat_svr_req", unack_peersvr_req);
+			return;
+		}
 		/* Request is from sched so update "has_runjob_hook" */
 		update_isrunhook(&server.sv_attr[SVR_ATR_has_runjob_hook]);
 	}
+
+	log_errf(-1, __func__, "respondong to server stat");
 
 	/* allocate a reply structure and a status sub-structure */
 
@@ -788,6 +802,12 @@ req_stat_svr(struct batch_request *preq)
 		reply_badattr(PBSE_NOATTR, bad, pal, preq);
 	else
 		reply_send(preq);
+}
+
+void
+req_stat_svr_task(struct work_task *ptask)
+{
+	req_stat_svr(ptask->wt_parm1);
 }
 
 /**
