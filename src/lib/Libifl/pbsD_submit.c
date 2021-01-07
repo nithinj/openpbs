@@ -67,6 +67,37 @@ struct cred_info {
 
 /**
  * @brief
+ *	get the next connection from the connection list based on the
+ *	last used value
+ *
+ * @param[in] c - connection fd
+ *
+ * @return int
+ * @retval -1: error
+ * @retval != -1 fd corresponding to the connection
+ */
+static int
+get_nxt_conn(int c)
+{
+	svr_conn_t **svr_conns = get_conn_svr_instances(c);
+	static int ind = -1;
+
+	if (!svr_conns || svr_conns[0]->sd == c)
+		return c;
+
+	if (ind == -1)
+		ind = rand_num() % get_num_servers();
+	else
+		ind = (ind + 1) % get_num_servers();
+
+	if (svr_conns[ind] && svr_conns[ind]->state == SVR_CONN_STATE_UP)
+		return svr_conns[ind]->sd;
+
+	return get_available_conn(svr_conns);
+}
+
+/**
+ * @brief
  *	-wrapper function for pbs_submit where submission takes credentials.
  *
  * @param[in] c - communication handle
@@ -91,6 +122,7 @@ pbs_submit_with_cred(int c, struct attropl  *attrib, char *script,
 	char					*ret;
 	struct pbs_client_thread_context	*ptr;
 	struct cred_info			*cred_info;
+	c = get_nxt_conn(c);
 
 	/* initialize the thread context data, if not already initialized */
 	if (pbs_client_thread_init_thread_context() != 0)
@@ -167,6 +199,7 @@ __pbs_submit(int c, struct attropl  *attrib, char *script, char *destination, ch
 	int msvr = multi_svr_op(c);
 	svr_conn_t **svr_conns = get_conn_svr_instances(c);
 	int random_svr_conn = random_srv_conn(c, svr_conns);
+	c = get_nxt_conn(c);
 
 	/* initialize the thread context data, if not already initialized */
 	if ((pbs_errno = pbs_client_thread_init_thread_context()) != 0)
@@ -217,8 +250,7 @@ __pbs_submit(int c, struct attropl  *attrib, char *script, char *destination, ch
 		} else
 			extend = EXTEND_OPT_IMPLICIT_COMMIT;
 	}	
-
-	c = random_svr_conn;	
+	
 	if (msvr && destination) {
 		/* Reached here means job is submitted to non default queue */
 		int start;
