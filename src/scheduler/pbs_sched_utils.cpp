@@ -122,11 +122,11 @@ extern char *msg_startup1;
 
 static pthread_mutex_t cleanup_lock;
 
-static void close_servers();
 static void reconnect_servers();
 static void sched_svr_init(void);
 static void connect_svrpool();
 static int schedule_wrapper(sched_cmd *cmd, int opt_no_restart);
+static void close_servers(void);
 
 typedef int (*schedule_func)(int, const sched_cmd *);
 
@@ -187,6 +187,45 @@ sigfunc_pipe(int sig)
 }
 
 /**
+ * @brief	cleanup routine for scheduler exit
+ *
+ * @param	void
+ *
+ * @return void
+ */
+static void
+schedexit(void)
+{
+	int i;
+
+	/* close any open connections to peers */
+	for (i = 0; (i < NUM_PEERS) &&
+		(conf.peer_queues[i].local_queue != NULL); i++) {
+		if (conf.peer_queues[i].peer_sd >= 0) {
+			/* When peering "local", do not disconnect server */
+			if (conf.peer_queues[i].remote_server != NULL)
+				pbs_disconnect(conf.peer_queues[i].peer_sd);
+			conf.peer_queues[i].peer_sd = -1;
+		}
+	}
+
+	/* Kill all worker threads */
+	if (num_threads > 1) {
+		int *thid;
+
+		thid = (int *) pthread_getspecific(th_id_key);
+
+		if (*thid == 0) {
+			kill_threads();
+			close_servers();
+			return;
+		}
+	}
+
+	close_servers();
+}
+
+/**
  * @brief
  *       Clean up after a signal.
  *
@@ -206,7 +245,6 @@ die(int sig)
 	else
 		log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, LOG_INFO, __func__, "abnormal termination");
 
-	close_servers();
 	schedexit();
 
 	{
@@ -590,7 +628,7 @@ connect_svrpool()
 			continue;
 		}
 
-		if (pbs_register_sched(sc_name, clust_primary_sock, clust_secondary_sock) == 0) {
+		if (pbs_register_sched(sc_name, clust_primary_sock, clust_secondary_sock) != 0) {
 			log_errf(pbs_errno, __func__, "Couldn't register the scheduler %s with the configured servers", sc_name);
 			/* wait for 2s for not to burn too much CPU, and then retry connection */
 			sleep(2);
@@ -1160,13 +1198,13 @@ sched_main(int argc, char *argv[], schedule_func sched_ptr)
 		}
 	}
 
-	close_servers();
 	schedexit();
 
 	log_eventf(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, LOG_INFO, __func__, "%s normal finish pid %ld", argv[0], (long) pid);
 	lock_out(lockfds, F_UNLCK);
 
 	unload_auths();
+	close_servers();
 	log_close(1);
 	exit(0);
 }
