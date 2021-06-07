@@ -230,6 +230,8 @@ struct svrinfo {
 };
 typedef struct svrinfo svrinfo_t;
 
+extern char *get_hostname_from_addr(struct in_addr);
+
 void *get_peersvr(struct sockaddr_in *);
 void *create_svr_entry(char *, unsigned int);
 int init_msi();

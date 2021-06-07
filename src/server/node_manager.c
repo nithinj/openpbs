@@ -3318,6 +3318,44 @@ cross_link_mom_vnode(struct pbsnode *pnode, mominfo_t *pmom)
 #define	UPDATE2_U		"UPDATE2"
 #define	UPDATE_FROM_MOM_HOOK	"update from mom hook"
 #define	UPDATE			"update"
+
+static int
+create_vnode(char *host, uint port, char *vnode_id)
+{
+	pbs_list_head atrlist;
+	svrattrl *pal;
+	int bad;
+	char     buf[200];
+	pbs_node *pnode;
+
+	CLEAR_HEAD(atrlist);
+
+	/* create vnode */
+	pal = attrlist_create(ATTR_NODE_Mom, 0, strlen(host)+1);
+	strcpy(pal->al_value, host);
+	append_link(&atrlist, &pal->al_link, pal);
+	if (port != PBS_MOM_SERVICE_PORT) {
+		sprintf(buf, "%u", port);
+		pal = attrlist_create(ATTR_NODE_Port, 0, strlen(buf)+1);
+		strcpy(pal->al_value, buf);
+		append_link(&atrlist, &pal->al_link, pal);
+	}
+	pal = GET_NEXT(atrlist);
+	bad = create_pbs_node(vnode_id, pal, ATR_DFLAG_MGWR,
+		&bad, &pnode, FALSE);
+	free_attrlist(&atrlist);
+	if (bad != 0) {
+		snprintf(log_buffer, sizeof(log_buffer),
+			"could not autocreate vnode \"%s\", error = %d",
+			vnode_id, bad);
+		log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
+			LOG_NOTICE, host, log_buffer);
+		return bad;
+	}
+
+	return 0;
+}
+
 /**
  * @brief
  * 		create/update vnodes from the information sent by Mom in the UPDATE2
@@ -3345,8 +3383,6 @@ update2_to_vnode(vnal_t *pvnal, int new, mominfo_t *pmom, int *madenew, int from
 	int j;
 	int localmadenew = 0;
 	struct pbsnode *pnode;
-	pbs_list_head atrlist;
-	svrattrl *pal;
 	char     buf[200];
 	attribute *pattr;
 	attribute *pRA;
@@ -3364,8 +3400,6 @@ update2_to_vnode(vnal_t *pvnal, int new, mominfo_t *pmom, int *madenew, int from
 	char	hook_name[HOOK_BUF_SIZE+1];
 	int	vn_state_updates = 0;
 	int	vn_resc_added = 0;
-
-	CLEAR_HEAD(atrlist);
 
 	/*
 	 * Can't do static initialization of these because svr_resc_def
@@ -3400,28 +3434,9 @@ update2_to_vnode(vnal_t *pvnal, int new, mominfo_t *pmom, int *madenew, int from
 	}
 
 	if ((pnode == NULL) && new) {
-		/* create vnode */
-		pal = attrlist_create(ATTR_NODE_Mom, 0, strlen(pmom->mi_host)+1);
-		strcpy(pal->al_value, pmom->mi_host);
-		append_link(&atrlist, &pal->al_link, pal);
-		if (pmom->mi_port != PBS_MOM_SERVICE_PORT) {
-			sprintf(buf, "%u", pmom->mi_port);
-			pal = attrlist_create(ATTR_NODE_Port, 0, strlen(buf)+1);
-			strcpy(pal->al_value, buf);
-			append_link(&atrlist, &pal->al_link, pal);
-		}
-		pal = GET_NEXT(atrlist);
-		bad = create_pbs_node(pvnal->vnal_id, pal, ATR_DFLAG_MGWR,
-			&bad, &pnode, FALSE);
-		free_attrlist(&atrlist);
-		if (bad != 0) {
-			snprintf(log_buffer, sizeof(log_buffer),
-				"could not autocreate vnode \"%s\", error = %d",
-				pvnal->vnal_id, bad);
-			log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
-				LOG_NOTICE, pmom->mi_host, log_buffer);
+
+		if ((bad = create_vnode(pmom->mi_host, pmom->mi_port, pvnal->vnal_id)) != 0)
 			return bad;
-		}
 		*madenew = 1;
 		localmadenew = 1;
 		snprintf(log_buffer, sizeof(log_buffer),
@@ -4193,6 +4208,7 @@ is_request(int stream, int version)
 	unsigned long		hook_rescdef_checksum;
 	unsigned long		chksum_rescdef;
 	static int		reply_send_tm = 0;
+	char			*hostname;
 
 	CLEAR_HEAD(reported_hooks);
 	DBPRT(("%s: stream %d version %d\n", __func__, stream, version))
@@ -4224,8 +4240,15 @@ is_request(int stream, int version)
 
 		DBPRT(("%s: IS_HELLOSVR addr: %s, port %lu\n", __func__, netaddr(addr), port))
 
-		if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL)
-			goto badcon;
+		if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL) {
+			log_errf(-1, __func__, "Adding mom with addr: %s and port: %lu to the cluster", 		netaddr(addr), port);
+			if ((hostname = get_hostname_from_addr(addr->sin_addr)) == NULL)
+				goto badcon;
+			if ((ret = create_vnode(hostname, port, hostname)) != 0)
+				goto badcon;
+			if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL)
+				goto badcon;
+		}
 
 		log_eventf(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
 			LOG_NOTICE, pmom->mi_host, "Hello from MoM on port=%lu", port);

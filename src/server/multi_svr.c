@@ -167,7 +167,6 @@ get_hostname_from_addr(struct in_addr addr)
 {
 	struct hostent *hp;
 
-	addr.s_addr = htonl(addr.s_addr);
 	hp = gethostbyaddr((void *) &addr, sizeof(struct in_addr), AF_INET);
 	if (hp == NULL) {
 		log_errf(-1, __func__, "%s: errno=%d, h_errno=%d",
@@ -218,7 +217,8 @@ create_svr_struct(struct sockaddr_in *addr, char *hostname)
 	server_t *psvr = NULL;
 	u_long *pul = NULL;
 
-	if (!hostname && (hostname = get_hostname_from_addr(addr->sin_addr)) == NULL)
+	if (!hostname &&
+	    (hostname = get_hostname_from_addr(addr->sin_addr)) == NULL)
 		return NULL;
 
 	if (make_host_addresses_list(hostname, &pul))
