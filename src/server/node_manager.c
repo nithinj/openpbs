@@ -4155,6 +4155,38 @@ err:
 	free(execvnod);
 }
 
+/**
+ * @brief determine if server can trust the mom
+ * 
+ * @return int
+ * @retval 1 : mom is trustable
+ * @retval 0: mom not trustable
+ */
+static int
+mom_trustable(void)
+{
+	int i;
+	static int trustable = -1;
+
+	if (trustable != -1)
+		return trustable;
+
+	if (!pbs_conf.supported_auth_methods)
+		return (trustable = 0);
+
+	for (i = 0; pbs_conf.supported_auth_methods[i]; i++) {
+		if (strcmp(pbs_conf.supported_auth_methods[i], AUTH_RESVPORT_NAME) == 0)
+			return (trustable = 0);
+		else if (strcmp(pbs_conf.supported_auth_methods[i], AUTH_GSS_NAME) == 0)
+			trustable = 1;
+		else if (strcmp(pbs_conf.supported_auth_methods[i], AUTH_MUNGE_NAME) == 0)
+			trustable = 1;
+		else if (strcmp(pbs_conf.supported_auth_methods[i], AUTH_TLS_NAME) == 0)
+			trustable = 1;
+	}
+
+	return trustable;
+}
 
 /**
  * @brief
@@ -4241,12 +4273,16 @@ is_request(int stream, int version)
 		DBPRT(("%s: IS_HELLOSVR addr: %s, port %lu\n", __func__, netaddr(addr), port))
 
 		if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL) {
-			log_errf(-1, __func__, "Adding mom with addr: %s and port: %lu to the cluster", 		netaddr(addr), port);
-			if ((hostname = get_hostname_from_addr(addr->sin_addr)) == NULL)
-				goto badcon;
-			if ((ret = create_vnode(hostname, port, hostname)) != 0)
-				goto badcon;
-			if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL)
+			if (mom_trustable()) {
+				if ((hostname = get_hostname_from_addr(addr->sin_addr)) == NULL)
+					goto badcon;
+				log_eventf(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE,
+					   LOG_NOTICE, hostname, "Auto creating mom with addr: %s and port: %lu", netaddr(addr), port);
+				if ((ret = create_vnode(hostname, port, hostname)) != 0)
+					goto badcon;
+				if ((pmom = tfind2(ipaddr, port, &ipaddrs)) == NULL)
+					goto badcon;
+			} else
 				goto badcon;
 		}
 

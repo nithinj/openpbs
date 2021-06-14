@@ -47,6 +47,8 @@ extern "C" {
 
 #define AUTH_RESVPORT_NAME "resvport"
 #define AUTH_GSS_NAME "gss"
+#define AUTH_MUNGE_NAME "munge"
+#define AUTH_TLS_NAME "tls"
 #ifndef MAXPATHLEN
 #define MAXPATHLEN 1024
 #endif
