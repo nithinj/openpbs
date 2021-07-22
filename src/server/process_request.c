@@ -1543,6 +1543,23 @@ decode_DIS_RelnodesJob(int sock, struct batch_request *preq)
 	return rc;
 }
 
+#ifndef PBS_MOM		/* Server Only */
+static void
+delete_all_arrayjobs(struct batch_request *preq)
+{
+	void *idx;
+	void *idx_ctx = NULL;
+	char *jid = NULL;
+	struct batch_reply *preply = &preq->rq_reply;
+
+	idx = preply->brp_un.brp_deletejoblist.undeleted_job_idx;
+
+	while (pbs_idx_find(idx, (void **) &jid, NULL, &idx_ctx) == PBS_IDX_RET_OK) {
+		if (jid && (is_job_array(jid) == IS_ARRAY_ArrayJob))
+			pbs_idx_delete(idx, jid);
+	}
+}
+#endif
 
 /**
  * @brief
@@ -1551,7 +1568,6 @@ decode_DIS_RelnodesJob(int sock, struct batch_request *preq)
  *
  * @param[in]	preq - the batch_request structure to free up.
  */
-
 void
 free_br(struct batch_request *preq)
 {
@@ -1568,9 +1584,9 @@ free_br(struct batch_request *preq)
 		if (preq->rq_parentbr->rq_refct > 0) {
 			if (--preq->rq_parentbr->rq_refct == 0) {
 #ifndef PBS_MOM		/* Server Only */
-				struct batch_reply *preply = &preq->rq_parentbr->rq_reply;
 				if (preq->rq_parentbr->rq_type == PBS_BATCH_DeleteJobList) {
-					if (update_deljob_rply(preq->rq_parentbr, preply->brp_un.brp_deletejoblist.pend_arrjobs, NULL, PBSE_NONE))
+					delete_all_arrayjobs(preq->rq_parentbr);
+					if (update_deljob_rply(preq->rq_parentbr, NULL, PBSE_NONE))
 						reply_send(preq->rq_parentbr);
 				} else
 #endif	/* End of server */
